@@ -19,8 +19,13 @@ from pathlib import Path
 
 from financeaudit.core import config
 from financeaudit.llm.client import structured_call, extract_digit_tokens
+from financeaudit.llm.prompts import (
+    NARRATIVE_SYSTEM as SYSTEM,
+    NARRATIVE_SCHEMA as SCHEMA,
+    NARRATIVE_PROMPT_VERSION,
+)
 
-SCHEMA = {
+_LEGACY_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "required": ["summary", "auditor_next_steps"],
@@ -34,20 +39,7 @@ SCHEMA = {
     },
 }
 
-SYSTEM = """You are drafting audit working-paper narratives for an external auditor.
-Rewrite the finding below as ONE polished English summary (<=120 words) plus up to
-three concrete next steps for the audit team.
-HARD RULES:
-- State only facts present in the input. NEVER introduce a number, date, account,
-  name or document that is not in the input.
-- Neutral wording. The words fraud/fraudulent/embezzlement/fake/fictitious or any
-  assertion of intent are FORBIDDEN unless input field intent_indicators is
-  non-empty; findings describe control deviations and unexplained differences
-  that require substantiation.
-- If the defense section lists counterevidence, acknowledge it explicitly.
-- Absence statements must keep the qualifier "in the provided and parsed
-  materials".
-- Next steps are requests/verifications an auditor would perform, not verdicts."""
+_LEGACY_SYSTEM = None  # moved to financeaudit/llm/prompts.py
 
 FRAUD_TERMS_FALLBACK = ["fraud", "fraudulent", "embezzle", "fake", "fictitious",
                         "kickback", "theft", "stole", "criminal"]
@@ -121,6 +113,7 @@ def enrich(build_dir: Path) -> int:
         f["description_llm"] = out["summary"]
         f["next_steps_llm"] = out.get("auditor_next_steps", [])
         f["llm"] = {"model": usage.get("model", model), "usage": usage,
+                     "prompt_version": NARRATIVE_PROMPT_VERSION,
                      "constraints": "facts_locked; post-filtered"}
         f["llm_used"] = True
         stats["accepted"] += 1
@@ -130,6 +123,7 @@ def enrich(build_dir: Path) -> int:
         meta["llm_enrichment"] = {
             "models": {"report": config.OPENAI_MODEL_REASONING,
                         "observation": config.OPENAI_MODEL_FAST},
+            "prompt_version": NARRATIVE_PROMPT_VERSION,
             **stats,
         }
         meta["llm_used"] = stats["accepted"] > 0
