@@ -19,17 +19,21 @@ from financeaudit.llm.calllog import log_event
 
 def structured_call(model: str, system: str, user: str, schema_name: str,
                     schema: dict, timeout: int = 60,
-                    max_attempts: int = 3,
+                    max_attempts: int = 0,
                     context: Optional[dict] = None) -> Optional[dict]:
     """One Structured-Outputs call with transient-failure retries.
 
-    The gpt-5.6 preview family intermittently returns 401 under capacity
-    pressure (~25% of calls, observed 2026-07-18); 401/429/5xx/timeouts are
-    treated as transient and retried with backoff. Returns parsed dict or
-    None (graceful) after the last attempt."""
+    Retry policy is DATA-DRIVEN (log corpus 1,522 calls, 2026-07-18): the
+    gpt-5.6 preview 401s are ~21%/attempt, statistically INDEPENDENT and
+    concurrency-flat (r=-0.21), and fast-fail in ~0.4s. Therefore: 4 attempts
+    (final-failure 0.94%->0.20%), FIXED short 0.4s pause, NO jitter (there is
+    no burst to decorrelate) and no growing backoff (waiting does not improve
+    the next draw). Override via FA_LLM_ATTEMPTS."""
     if not config.llm_available():
         return None
     import time
+    if not max_attempts:
+        max_attempts = int(os.environ.get("FA_LLM_ATTEMPTS", "4"))
     call_id = f"{os.getpid()}-{int(time.time()*1000)}"
     log_event("llm_request", {"call_id": call_id, "model": model,
                                "schema_name": schema_name,
@@ -37,7 +41,7 @@ def structured_call(model: str, system: str, user: str, schema_name: str,
                                "system": system, "user": user})
     for attempt in range(max_attempts):
         if attempt:
-            time.sleep(2 * attempt)
+            time.sleep(0.4)
         t0 = time.time()
         out = _one_call(model, system, user, schema_name, schema, timeout,
                         call_id=call_id, attempt=attempt, t0=t0)
