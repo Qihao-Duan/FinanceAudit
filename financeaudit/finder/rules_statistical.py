@@ -121,7 +121,11 @@ def _llm_rate_pairs(pairs):
     anything at all goes wrong. Rating never changes the support-based tier upward
     beyond 'medium'; it is stored as a metric only.
     """
-    if not os.environ.get("OPENAI_API_KEY"):
+    # Opt-in only (FA_R9_LLM=1): with a key present this would otherwise
+    # silently activate inside the DETERMINISTIC finder stage — making two
+    # identical runs differ (LLM text varies) and adding ~13s latency.
+    # Determinism of the rule layer outranks an optional metric.
+    if os.environ.get("FA_R9_LLM") != "1" or not os.environ.get("OPENAI_API_KEY"):
         return {}, False
     try:  # pragma: no cover - only runs when a key is present
         from openai import OpenAI

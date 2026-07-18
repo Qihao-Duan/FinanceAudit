@@ -10,6 +10,7 @@ FinanceAudit ingests a ~20-file German/English company dossier (Microsoft Dynami
 
 ## Table of contents
 
+- [Tutorial: from zero to findings](#tutorial-from-zero-to-findings)
 - [What it does](#what-it-does)
 - [Architecture overview](#architecture-overview)
 - [Quick start](#quick-start)
@@ -22,6 +23,77 @@ FinanceAudit ingests a ~20-file German/English company dossier (Microsoft Dynami
 - [Documentation & verification log](#documentation--verification-log)
 
 ---
+
+## Tutorial: from zero to findings
+
+Complete walkthrough for a fresh machine (macOS/Linux, Python ≥ 3.9). Copy-paste each block.
+
+**1 — Get the code and dependencies** (~2 min)
+
+```bash
+git clone https://github.com/Qihao-Duan/FinanceAudit.git
+cd FinanceAudit
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**2 — Add the dossier** (the data is never in the repo)
+
+```bash
+mkdir -p data
+cp -R "/path/to/Uebungsdaten Muster Verpackungen" data/practice
+```
+
+**3 — Enable the LLM agent layer** (optional but required for the full agent flow)
+
+Create a file named `.env` in the repo root (it is gitignored):
+
+```bash
+OPENAI_API_KEY=sk-...              # your key
+FA_MODEL_REASONING=gpt-5.6-sol     # optional: pin the model for report-tier narratives
+FA_MODEL_FAST=gpt-5.6-sol          # optional: pin the model for observation-tier narratives
+```
+
+No key? Everything below still works — the pipeline runs fully deterministic and marks `llm_used: false`.
+
+**4 — Run the whole pipeline** (one command)
+
+```bash
+python3 scripts/run_pipeline.py
+```
+
+You will see stage banners: `INGEST → FINDER → EVIDENCE → CLAIMS → DEFENSE → VERDICT → ENRICH → EVAL`.
+The deterministic stages take ~20 s; `ENRICH` (the LLM agent drafting working-paper narratives, one
+Structured-Outputs call per finding) takes a few minutes with a key and is skipped without one.
+`EVAL` exits non-zero if any regression gate fails — a green run ends with `EXIT CODE: 0`.
+
+**5 — Open the evidence-card UI**
+
+```bash
+./scripts/serve_ui.sh          # http://127.0.0.1:8642
+```
+
+What to try first: the executive strip shows *5 key findings · €629,840 flagged*; open key finding **01**
+(vendor 209101), read the AI-drafted summary, then click any citation chip — the right pane renders the
+cited ledger rows or PDF page with the passage highlighted. Toggle **EN / DE / 中文** in the top bar.
+Prefer a file? The same content is in `build/report.html` (self-contained, printable).
+
+**6 — Run it on a different dossier** (e.g. the finals drop)
+
+```bash
+mkdir -p data/finals && cp -R /path/to/new_dossier/* data/finals/
+FA_DATA_DIR=data/finals FA_BUILD_DIR=build_finals python3 scripts/run_pipeline.py --skip-eval
+```
+
+Every `build*/` directory appears in the UI's top-bar **workspace dropdown** — switch to it live,
+no restart. (`--skip-eval` because the regression labels only apply to the practice dossier.)
+
+**7 — Optional switches**
+
+| Env var | Effect |
+|---|---|
+| `FA_R9_LLM=1` | adds an LLM plausibility rating to rare account-pair candidates (off by default: it makes the otherwise deterministic finder non-reproducible and slower) |
+| `FA_UI_FIXTURES=1` | UI demo mode with bundled fixtures, no pipeline artifacts needed |
 
 ## What it does
 
@@ -130,7 +202,7 @@ The mandatory partner technology is **OpenAI**, used only where language underst
 Enablement and fallback:
 
 - Set `OPENAI_API_KEY` to enable the LLM layers. When it is **absent, every call site runs a deterministic fallback and stamps `llm_used: false`** in its output — the entire pipeline, the eval and the UI run end-to-end with no key.
-- **Exercised end-to-end (2026-07-18):** with a key set, the `ENRICH` stage drafts audit working-paper narratives + suggested next steps per finding via **Structured Outputs (strict JSON schema)** — models configurable via `FA_MODEL_REASONING`/`FA_MODEL_FAST` in `.env` (current config: `gpt-5.6-sol` for every call; the 5.6 preview family intermittently 401s under capacity pressure, absorbed by client-side retries) — and finder rule R9 rates rare account co-occurrences in a constrained three-way choice. Guardrails: the LLM never computes amounts, selects evidence or touches the verdict gate; outputs are post-filtered (any digit token not present in the finding's own facts ⇒ rejected; fraud wording without intent indicators ⇒ rejected) and rejected drafts fall back to the deterministic text. Latest run (gpt-5.6-sol): 24/41 narratives accepted, 0 wording violations, eval gates unchanged (4/4 recall, 0 decoy FPs, 230/230 citations).
+- **Exercised end-to-end (2026-07-18):** with a key set, the `ENRICH` stage drafts audit working-paper narratives + suggested next steps per finding via **Structured Outputs (strict JSON schema)** — models configurable via `FA_MODEL_REASONING`/`FA_MODEL_FAST` in `.env` (current config: `gpt-5.6-sol` for every call; the 5.6 preview family intermittently 401s under capacity pressure, absorbed by client-side retries) — and (opt-in via `FA_R9_LLM=1`) finder rule R9 rates rare account co-occurrences in a constrained three-way choice — off by default to keep the deterministic layer byte-reproducible. Guardrails: the LLM never computes amounts, selects evidence or touches the verdict gate; outputs are post-filtered (any digit token not present in the finding's own facts ⇒ rejected; fraud wording without intent indicators ⇒ rejected) and rejected drafts fall back to the deterministic text. Latest run (gpt-5.6-sol): 24/41 narratives accepted, 0 wording violations, eval gates unchanged (4/4 recall, 0 decoy FPs, 230/230 citations).
 - **Honesty note:** all *detection and quantification* results are from the deterministic path by design; the LLM layer is presentation/adjudication-support only, and every finding shows whether its narrative is AI-drafted.
 
 ## Anti-hallucination design
