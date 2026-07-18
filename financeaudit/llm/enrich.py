@@ -85,7 +85,10 @@ def enrich(build_dir: Path) -> int:
     fraud_terms = _fraud_terms()
     stats = {"calls": 0, "accepted": 0, "rejected_numbers": 0,
              "rejected_wording": 0, "failed": 0}
+    scope = __import__("os").environ.get("FA_ENRICH_SCOPE", "all")
     for f in findings:
+        if scope == "report" and f.get("disposition") != "report":
+            continue
         # re-enrichment hygiene: never leave a stale narrative from a previous
         # prompt version on a finding whose new draft gets rejected
         for k in ("description_llm", "next_steps_llm", "llm"):

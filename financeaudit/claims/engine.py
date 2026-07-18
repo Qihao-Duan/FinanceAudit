@@ -143,9 +143,20 @@ def classify(pack) -> dict:
     if "R15" in rules and pack["entity_key"].startswith("account:"):
         return {"scheme": "expense_capitalization", "mechanism": mech, "tier": tier,
                 "anomaly_type": "contextual", "finding_class": "misstatement_risk"}
+    # Route R02 by the CHANGED FIELD (mutation-suite 2026-07-18): a self-approved
+    # BANK-DETAIL change (Bankverbindung) coupled to payments is a payment-
+    # diversion control breach, NOT a vendor-creation scheme — routing it to
+    # fictitious_vendor produced creation/framework-contract prose about a vendor
+    # that already existed. Report-capable via its own builder.
+    if pack["entity_key"].startswith("vendor:") and any(
+            c["rule_id"] == "R02"
+            and str((c.get("metrics") or {}).get("field", "")).startswith("Bank")
+            for c in pack["candidates"]):
+        return {"scheme": "controls_breach", "mechanism": mech, "tier": tier,
+                "anomaly_type": "contextual", "finding_class": "control_breach"}
     # fictitious-vendor pattern needs a vendor-lifecycle control signal
-    # (self-approved creation R02 or new-vendor fast-pay R06); a dangling
-    # reference alone (R16) stays a neutral signal.
+    # (self-approved CREATION R02 (Neuanlage) or new-vendor fast-pay R06); a
+    # dangling reference alone (R16) stays a neutral signal.
     if rules & {"R02", "R06"} and pack["entity_key"].startswith("vendor:"):
         return {"scheme": "fictitious_vendor", "mechanism": mech, "tier": tier,
                 "anomaly_type": "contextual", "finding_class": "control_breach"}
@@ -560,6 +571,67 @@ def build_cutoff(con, pack, fid) -> dict:
                           "detail": {"subset_matches_accrual": subset_hit,
                                      "range_eur": [str(low), str(inv_total)]}},
             verdict="supported" if not subset_hit else "unverifiable"))
+    # Item-level accrual linkage (conditional): if the client provided a per-
+    # invoice accrual schedule (optional-spec table accrual_schedule), cite what
+    # it actually says instead of asserting a blanket absence. A row INCLUDING a
+    # post-period invoice ('Enthalten') is mitigating; a row EXCLUDING one
+    # ('Nicht enthalten') is a documented unaccrued liability (incriminating).
+    # Absent/empty table (e.g. the practice dossier) -> wording unchanged.
+    linkage_missing = ("item-level accrual linkage: not found in the provided and "
+                       "parsed materials")
+    try:
+        sched = q(con, "SELECT * FROM accrual_schedule WHERE invoice_ref IS NOT NULL "
+                       "ORDER BY invoice_ref")
+    except Exception:
+        sched = []
+    if sched:
+        def _incl(r):
+            st = str(r.get("status") or "").strip().lower()
+            return (st.startswith(("enthalten", "included", "ja"))
+                    or (r.get("allocated_amount") or 0) > 0)
+        covered = [r for r in sched if _incl(r)]
+        excluded = [r for r in sched if not _incl(r)]
+        if excluded:
+            refs = ", ".join(str(r.get("invoice_ref")) for r in excluded)
+            exc_amt = sum((abs(dec(r["obligation_amount_raw"])) for r in excluded
+                           if r.get("obligation_amount_raw")), Decimal("0"))
+            claims.append(_claim(
+                fid, 6, "core", "entity_attribute",
+                f"The client year-end accrual schedule explicitly records post-period "
+                f"invoice(s) {refs} ({_fmt(exc_amt)} EUR) as NOT included in the accrual "
+                f"('Nicht enthalten') — a documented unaccrued FY2025 liability, not an "
+                f"undetermined one.",
+                [cell_citation(con, r["source_id"], "STATUS", r.get("status"))
+                 for r in excluded],
+                verification={"method": "accrual_schedule per-invoice allocation lookup",
+                              "llm_used": False,
+                              "detail": {"excluded_invoices": [r.get("invoice_ref")
+                                                               for r in excluded],
+                                         "excluded_amount": str(exc_amt),
+                                         "n_covered": len(covered)}},
+                verdict="supported"))
+            linkage_missing = (f"item-level accrual linkage: the client accrual schedule "
+                               f"documents invoice(s) {refs} ({_fmt(exc_amt)} EUR) as "
+                               f"EXCLUDED from the year-end accrual")
+        elif covered:
+            refs = ", ".join(str(r.get("invoice_ref")) for r in covered)
+            cov_amt = sum((abs(dec(r["allocated_amount_raw"])) for r in covered
+                           if r.get("allocated_amount_raw")), Decimal("0"))
+            claims.append(_claim(
+                fid, 6, "supporting", "existence",
+                f"The client year-end accrual schedule allocates post-period invoice(s) "
+                f"{refs} against the accrual ('Enthalten', {_fmt(cov_amt)} EUR), "
+                f"evidencing item-level coverage for those invoices.",
+                [cell_citation(con, r["source_id"], "STATUS", r.get("status"))
+                 for r in covered],
+                verification={"method": "accrual_schedule per-invoice allocation lookup",
+                              "llm_used": False,
+                              "detail": {"covered_invoices": [r.get("invoice_ref")
+                                                              for r in covered],
+                                         "allocated_amount": str(cov_amt)}},
+                verdict="supported"))
+            linkage_missing = (f"item-level accrual linkage: documented in the client "
+                               f"accrual schedule (invoice(s) {refs} allocated to the accrual)")
     return {
         "claims": claims,
         "title": "FY2025 cut-off: post-period invoices with December service dates "
@@ -576,7 +648,7 @@ def build_cutoff(con, pack, fid) -> dict:
                               "accrual calculation basis for 86,500 EUR",
                               "inventory postings for December receipts"],
         "missing_evidence": [
-            "item-level accrual linkage: not found in the provided and parsed materials",
+            linkage_missing,
             "accrual computation basis: not found in the provided and parsed materials"],
         "pbc_requests": ["accrual working papers for 'unfakturierte Leistungen Dez 2025'",
                          "statement whether the eight December deliveries were accrued "
@@ -905,12 +977,171 @@ def build_generic(con, pack, fid) -> dict:
     }
 
 
+def build_revenue_timing(con, pack, fid) -> dict:
+    """R18 invoice_vs_goods_issue: a booked sales invoice with NO matching goods
+    issue while its peers reconcile 1:1 — a report-capable fictitious-sales /
+    revenue-timing risk. Emits the invoice amount as a recomputable core
+    numerical claim so the exposure is structured, not just prose (mutation-suite
+    2026-07-18: amount_eur was 0.0, the figure lived only in narrative)."""
+    cand = next((c for c in pack["candidates"]
+                 if c["rule_id"] == "R18"
+                 and (c.get("metrics") or {}).get("check") == "invoice_vs_goods_issue"), None)
+    if cand is None:
+        return {"claims": [], "title": "", "description": "",
+                "expected_evidence": [], "missing_evidence": [], "pbc_requests": []}
+    m = cand.get("metrics") or {}
+    inv_no = m.get("invoice_no")
+    cust = m.get("customer_account")
+    inv = q(con, "SELECT * FROM sales_invoices WHERE invoice_no=?", [inv_no])
+    claims = []
+    if inv:
+        r = inv[0]
+        amt = abs(dec(r["amount_raw"]))
+        cust_name = r.get("customer_name") or cust
+        # C1 core numerical — the recorded revenue/receivable (recomputable)
+        claims.append(_claim(
+            fid, 1, "core", "numerical",
+            f"Sales invoice {inv_no} to customer {cust} ({cust_name}) records "
+            f"{_fmt(amt)} EUR with service date {r['service_date']}.",
+            [cell_citation(con, r["source_id"], "BETRAG_EUR", r["amount_raw"])],
+            value=_amount_value(amt, f"|BETRAG_EUR| of sales invoice {inv_no} = {r['amount_raw']}",
+                                [r["source_id"]], "sum_abs")))
+        # C2 core existence — no matching goods issue while peers reconcile 1:1
+        gi = q(con, "SELECT * FROM goods_issues WHERE invoice_ref=?", [inv_no])
+        claims.append(_claim(
+            fid, 2, "core", "existence",
+            f"No goods issue referencing invoice {inv_no} was found in the delivery "
+            f"list, although the other sales invoices in the compared population "
+            f"reconcile 1:1 to a goods issue. Whether the delivery occurred cannot "
+            f"be corroborated from the provided and parsed materials.",
+            [cell_citation(con, r["source_id"], "RECHNUNGSNUMMER", inv_no)],
+            verification={"method": "goods_issues lookup by invoice_ref + peer reconciliation",
+                          "llm_used": False,
+                          "detail": {"n_goods_issues_for_invoice": len(gi),
+                                     "peers_reconcile_1to1": True}},
+            verdict="supported" if not gi else "contradicted"))
+    return {
+        "claims": claims,
+        "title": f"Sales invoice {inv_no} ({cust}) — booked revenue without a matching "
+                 f"goods issue",
+        "description": (cand.get("description", "") +
+                        " Reported as a revenue cut-off / occurrence risk requiring "
+                        "delivery evidence; no statement about intent is made."),
+        "expected_evidence": ["delivery note / goods issue for the invoiced goods",
+                              "customer confirmation of receipt",
+                              "shipping documentation"],
+        "missing_evidence": [
+            f"goods issue for invoice {inv_no}: not found in the provided and parsed "
+            f"delivery list (its peers reconcile 1:1)"],
+        "pbc_requests": [f"delivery evidence for sales invoice {inv_no}",
+                         f"proof of dispatch/receipt for customer {cust}"],
+    }
+
+
+def build_bank_change(con, pack, fid) -> dict:
+    """R02 (self-approved BANK-DETAIL change) + R07 (change->payment coupling):
+    a self-approved change to a vendor's bank data followed by outbound payments
+    inside the monitoring window is a payment-diversion control breach — NOT a
+    vendor-creation scheme (mutation-suite 2026-07-18: was mislabeled
+    fictitious_vendor with creation/framework-contract prose). Articulates the
+    change->payment coupling with recomputable claims."""
+    acct = pack["entity_key"].split(":")[1]
+    vendor = pack.get("entity_master") or {}
+    name = vendor.get("name", pack["entity_label"])
+    r07 = next((c for c in pack["candidates"] if c["rule_id"] == "R07"), None)
+    md = q(con, "SELECT * FROM masterdata_changes WHERE account=? AND field LIKE 'Bank%' "
+               "ORDER BY change_date", [acct])
+    claims = []
+    change_date = md[0]["change_date"] if md else None
+    # C1 self-approved bank-detail change
+    if md:
+        row = md[0]
+        self_appr = row["changed_by"] == row["approved_by"]
+        claims.append(_claim(
+            fid, 1, "core", "entity_attribute",
+            f"The bank details of vendor account {acct} ({name}) were changed on "
+            f"{row['change_date']} by user {row['changed_by']} and approved by the "
+            f"same user {row['approved_by']} (master-data change log, field "
+            f"'{row['field']}').",
+            [cell_citation(con, row["source_id"], "GEAENDERT_VON/GENEHMIGT_VON",
+                           f"{row['changed_by']} / {row['approved_by']}")],
+            verification={"method": "changed_by == approved_by on the cited bank-change row",
+                          "llm_used": False,
+                          "detail": {"self_approved_bank_change": bool(self_appr),
+                                     "field": row["field"]}},
+            verdict="supported" if self_appr else "unverifiable"))
+    # C2 payments coupled to the change (recomputable core numerical)
+    win = int((r07.get("metrics") or {}).get("window_days", 30)) if r07 else 30
+    pays = []
+    if change_date:
+        allp = q(con, "SELECT * FROM gl WHERE sub_account=? AND posting_type='Zahlung' "
+                      "AND posting_date >= ? ORDER BY posting_date, entry_id",
+                 [acct, change_date])
+        pays = [p for p in allp if (p["posting_date"] - change_date).days <= win]
+    if pays:
+        raws = [dec(p["amount_raw"]) for p in pays]
+        tot = sum((abs(x) for x in raws), Decimal("0"))
+        refs = [p["source_id"] for p in pays]
+        first_gap = (pays[0]["posting_date"] - change_date).days
+        claims.append(_claim(
+            fid, 2, "core", "numerical",
+            f"Within {win} days of that bank-detail change, {len(pays)} outbound "
+            f"payment(s) on account {acct} totalling {_fmt(tot)} EUR were posted "
+            f"(first payment {first_gap} day(s) after the change), coupling the "
+            f"self-approved change to the disbursement of funds.",
+            [cell_citation(con, p["source_id"], "BUCHUNGSBETRAG", p["amount_raw"])
+             for p in pays],
+            value=_amount_value(tot,
+                                "sum(|BUCHUNGSBETRAG|) over the post-change payments = "
+                                + " + ".join(str(abs(x)) for x in raws), refs, "sum_abs"),
+            verification={"method": "gl payment lookup after change_date within window",
+                          "llm_used": False,
+                          "detail": {"window_days": win, "n_payments": len(pays),
+                                     "first_payment_gap_days": first_gap}}))
+    # C3 verifiability limit (the dossier has no bank numbers / statements).
+    # Only emitted when the change row is citable (never an empty-citation claim).
+    if md:
+        claims.append(_claim(
+            fid, 3, "supporting", "existence",
+            f"The dossier contains no bank account numbers or bank statements, so "
+            f"whether the change re-routed these payments to a different beneficiary "
+            f"cannot be confirmed from the provided and parsed materials; the control "
+            f"deficiency (self-approval of a payment-relevant master-data change) is "
+            f"established independently of that question.",
+            [cell_citation(con, md[0]["source_id"], "WERT_NEU", md[0].get("new_value") or "")],
+            verification={"method": "dossier scope check (no bank_statement evidence type)",
+                          "llm_used": False}))
+    return {
+        "claims": claims,
+        "title": f"Vendor account {acct} ({name}) — self-approved bank-detail change "
+                 f"coupled to outbound payments",
+        "description": (
+            f"The bank details of vendor account {acct} ({name}) were changed and "
+            f"approved by the same user, and outbound payments followed inside the "
+            f"monitoring window. This is reported as a segregation-of-duties / "
+            f"payment-diversion control breach requiring substantiation; the dossier "
+            f"holds no bank numbers, so a re-routing of funds cannot be confirmed or "
+            f"excluded from the provided and parsed materials."),
+        "expected_evidence": ["independent approval of the bank-detail change",
+                              "bank statements for the subsequent payments",
+                              "confirmation of the payee bank account"],
+        "missing_evidence": [
+            "independent approval of the bank-detail change: the master-data log "
+            "shows the same user as changer and approver",
+            "bank statements: not part of the dossier scope (PBC only)"],
+        "pbc_requests": [f"second-signature evidence for the bank-detail change on {acct}",
+                         f"bank statements covering the payments to {acct}",
+                         "confirmation of the vendor's bank account with the vendor"],
+    }
+
+
 _BUILDERS = {
     "fictitious_vendor": build_fictitious_vendor,
     "threshold_splitting": build_threshold_splitting,
     "cutoff": build_cutoff,
     "expense_capitalization": build_expense_capitalization,
     "related_party": build_related_party,
+    "revenue_timing": build_revenue_timing,
 }
 
 
@@ -919,8 +1150,17 @@ def build_finding(con, pack, seq: int) -> dict:
     fid = f"F-{seq:04d}"
     builder = _BUILDERS.get(cls["scheme"], build_generic)
     pack_rules = {c["rule_id"] for c in pack["candidates"]}
+    _bank_change = any(c["rule_id"] == "R02"
+                       and str((c.get("metrics") or {}).get("field", "")).startswith("Bank")
+                       for c in pack["candidates"])
     if "R20" in pack_rules:
         body = build_duplicate_payment(con, pack, fid)
+        if not body["claims"]:
+            body = build_generic(con, pack, fid)
+    elif _bank_change and cls["scheme"] == "controls_breach":
+        # self-approved bank-detail change (+ R07 coupling): dedicated builder,
+        # not the neutral generic path (mutation-suite 2026-07-18).
+        body = build_bank_change(con, pack, fid)
         if not body["claims"]:
             body = build_generic(con, pack, fid)
     elif builder is build_generic or (cls["scheme"] == "controls_breach"):

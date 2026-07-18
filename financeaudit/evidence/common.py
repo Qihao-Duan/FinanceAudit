@@ -169,8 +169,15 @@ EVIDENCE_SCOPE = {
                                "note": "services are outside the goods-receipt list scope"},
     "contract_document": {"covered_by": None,
                           "note": "no dossier file declares contract coverage"},
-    "technical_assessment": {"covered_by": None,
-                             "note": "no dossier file declares assessment coverage"},
+    # Covered by the optional technical-assessment table when the client provides
+    # it (ingest OPTIONAL_CSV_SPECS -> technical_assessments); absent from the
+    # base practice dossier. The defense predicate technical_assessment_exists
+    # consults the typed table directly, so this entry no longer implies a
+    # blanket absence when the fixture is present.
+    "technical_assessment": {"covered_by":
+                             "Begleitdokumente/Technische_Beurteilungen_Synthetisch.csv",
+                             "note": "assessment coverage only where the optional "
+                                     "technical_assessments table is provided"},
     "bank_statement": {"covered_by": None,
                        "note": "bank statements are not part of the dossier"},
     "journal_approval": {"covered_by": "Begleitdokumente/Freigabe-Log_Journale_2025.csv",
@@ -193,14 +200,20 @@ def absence_gate(manifest: dict, evidence_type: str) -> dict:
     """
     spec = EVIDENCE_SCOPE.get(evidence_type, {"covered_by": None, "note": "unknown scope"})
     f = spec["covered_by"]
-    coverage = manifest.get(f, {}).get("parse_coverage") if f else None
-    if f and coverage == "complete" and evidence_type in _PROVABLE_ABSENCE:
+    # A declared covering file only counts if it was actually ingested (present in
+    # the manifest). This lets an optional/synthetic fixture (e.g. the
+    # technical_assessments file) provide coverage when supplied, while a dossier
+    # that omits it — like the base practice set — behaves exactly as before.
+    file_present = bool(f) and f in manifest
+    coverage = manifest.get(f, {}).get("parse_coverage") if file_present else None
+    if file_present and coverage == "complete" and evidence_type in _PROVABLE_ABSENCE:
         return {"claim_type": "absence", "qualifier": "",
                 "coverage": f"{f}: parse complete; scope: {manifest[f]['population_scope']}"}
     return {"claim_type": "existence",
             "qualifier": "not found in the provided and parsed materials; "
                          + spec["note"],
-            "coverage": (f"{f}: {coverage}" if f else "no dossier file covers this evidence type")}
+            "coverage": (f"{f}: {coverage}" if file_present
+                         else "no dossier file covers this evidence type")}
 
 
 # ------------------------------------------------------------- doc / token scan

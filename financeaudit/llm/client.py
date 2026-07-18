@@ -57,10 +57,15 @@ def _one_call(model: str, system: str, user: str, schema_name: str,
     try:
         from openai import OpenAI
         client = OpenAI()
+        kwargs = {}
+        tier = os.environ.get("FA_LLM_SERVICE_TIER")
+        if tier and not getattr(_one_call, "_tier_unsupported", False):
+            kwargs["service_tier"] = tier
         rsp = client.chat.completions.create(
             model=model,
             messages=[{"role": "system", "content": system},
                       {"role": "user", "content": user}],
+            **kwargs,
             response_format={
                 "type": "json_schema",
                 "json_schema": {"name": schema_name, "strict": True,
@@ -82,6 +87,10 @@ def _one_call(model: str, system: str, user: str, schema_name: str,
                                     "usage": out["_usage"]})
         return out
     except Exception as exc:  # any failure -> deterministic fallback
+        if "service_tier" in str(exc):
+            # account/model does not support the requested tier — drop the
+            # param for the rest of this process and let the retry proceed
+            _one_call._tier_unsupported = True
         log_event("llm_error", {"call_id": call_id, "attempt": attempt,
                                  "model": model,
                                  "latency_s": round(time.time() - t0, 3) if t0 else None,

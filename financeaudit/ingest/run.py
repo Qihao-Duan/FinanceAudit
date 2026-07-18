@@ -163,10 +163,28 @@ def main(argv=None):
         from .auto_adapter import auto_structure, discover_unknown_files
         from .sidecars import KNOWN_BEGLEIT_FILES
         unknown_rels = discover_unknown_files(data_dir, KNOWN_BEGLEIT_FILES)
+        # Known files whose BUILTIN adapter yielded zero rows on this dossier
+        # (layout drift, e.g. finals OP-Liste with shifted columns) are re-routed
+        # through the same Mapper/Verifier agents instead of staying empty
+        # (finals run 2026-07-18). The agents may map them onto their existing
+        # target tables via decision=use_existing.
+        zero_yield = [
+            m["file"] for m in manifest.rows
+            if m.get("provided", True)
+            and (m.get("parsed_units") or 0) == 0
+            and m.get("parse_coverage") in ("failed", "partial")
+            and str(m["file"]).startswith("Begleitdokumente/")
+            and str(m["file"]).lower().endswith((".csv", ".tsv", ".xlsx"))
+            and m["file"] not in unknown_rels
+        ]
+        if zero_yield:
+            print(f"[ingest] auto-adapter retry for {len(zero_yield)} known file(s) "
+                  f"with zero builtin yield: {', '.join(sorted(zero_yield))}")
         existing_cols = {n: sorted(r[0].keys()) for n, r in
                          {**tables, **side_tables}.items() if r}
         auto_tables, auto_report = auto_structure(
-            data_dir, unknown_rels, existing_cols, registry, manifest)
+            data_dir, sorted(set(unknown_rels) | set(zero_yield)), existing_cols,
+            registry, manifest)
         side_tables.update(auto_tables)
 
     tables.update(side_tables)

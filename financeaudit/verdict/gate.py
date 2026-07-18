@@ -93,6 +93,18 @@ def intent_indicators(f) -> list[str]:
         if preds.get("independent_invoices_per_payment", {}).get("result") == "not_found":
             ind.append("single collective payable settled in parts "
                        "(no independent invoices per payment found)")
+    if f["scheme"] == "controls_breach":
+        # self-approved bank-detail change coupled to outbound payments
+        # (mutation-suite 2026-07-18): a control-bypass intent indicator so the
+        # wording gate permits stronger language for the diversion pattern.
+        for c in f.get("claims", []):
+            det = (c.get("verification") or {}).get("detail")
+            if (isinstance(det, dict) and det.get("self_approved_bank_change")
+                    and c["verdict"] == "supported"):
+                ind.append("control_bypass: vendor bank details changed and "
+                           "self-approved, then coupled to outbound payments "
+                           "within the window")
+                break
     if f["scheme"] == "related_party":
         # identity conflict alone is a data conflict, not an intent indicator
         pass
