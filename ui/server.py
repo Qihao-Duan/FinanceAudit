@@ -17,6 +17,7 @@ import csv
 import io
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -29,6 +30,18 @@ BUILD_DIR = Path(os.environ.get("FA_BUILD_DIR", ROOT / "build"))
 DATA_DIR = Path(os.environ.get("FA_DATA_DIR", ROOT / "data" / "practice"))
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 FORCE_FIXTURES = os.environ.get("FA_UI_FIXTURES", "") == "1"
+
+# Current workspace (switchable at runtime via POST /api/workspace).
+# BUILD_DIR/DATA_DIR above stay the env-derived defaults.
+_WS: Dict[str, Path] = {"build": BUILD_DIR, "data": DATA_DIR}
+
+
+def _bdir() -> Path:
+    return _WS["build"]
+
+
+def _ddir() -> Path:
+    return _WS["data"]
 
 CONTRACT_TABLES = [
     "gl", "vendors", "customers", "vendor_tx", "customer_tx", "assets",
@@ -60,7 +73,7 @@ def _load_json(path: Path) -> Any:
 
 
 def build_artifacts_present() -> bool:
-    return (BUILD_DIR / "findings.json").exists()
+    return (_bdir() / "findings.json").exists()
 
 
 def mode() -> str:
@@ -71,15 +84,15 @@ def mode() -> str:
 
 def get_findings() -> List[dict]:
     if mode() == "build":
-        data = _load_json(BUILD_DIR / "findings.json")
+        data = _load_json(_bdir() / "findings.json")
         # tolerate both bare list and {"findings": [...]}
         return data["findings"] if isinstance(data, dict) and "findings" in data else data
     return _load_json(FIXTURE_DIR / "findings.fixture.json")
 
 
 def get_manifest() -> dict:
-    if mode() == "build" and (BUILD_DIR / "manifest.json").exists():
-        return _load_json(BUILD_DIR / "manifest.json")
+    if mode() == "build" and (_bdir() / "manifest.json").exists():
+        return _load_json(_bdir() / "manifest.json")
     return _load_json(FIXTURE_DIR / "manifest.fixture.json")
 
 
@@ -88,11 +101,12 @@ def _duck():
     caller gets its own cursor: FastAPI sync endpoints run in a threadpool and
     a shared connection object races on cursor state (observed as
     ORDER BY "count_star()" binder errors under concurrent requests)."""
-    con = _cache.get("_duck_con")
+    db = str(_bdir() / "audit.duckdb")
+    con = _cache.get(f"_duck_con::{db}")
     if con is None:
         import duckdb
-        con = duckdb.connect(str(BUILD_DIR / "audit.duckdb"), read_only=True)
-        _cache["_duck_con"] = con
+        con = duckdb.connect(db, read_only=True)
+        _cache[f"_duck_con::{db}"] = con
     return con.cursor()
 
 
@@ -106,7 +120,7 @@ def lookup_source(source_id: str) -> Optional[dict]:
             rec = dict(rec)
             rec["file_spec"] = reg["files"].get(rec["file"])
         return rec
-    if not (BUILD_DIR / "audit.duckdb").exists():
+    if not (_bdir() / "audit.duckdb").exists():
         return None
     con = _duck()
     rows = con.execute(
@@ -350,8 +364,8 @@ def api_manifest():
     # Citation resolvability comes from the eval artefact when present.
     cit = {}
     try:
-        if mode() == "build" and (BUILD_DIR / "eval_report.json").exists():
-            cit = (_load_json(BUILD_DIR / "eval_report.json") or {}).get("citations") or {}
+        if mode() == "build" and (_bdir() / "eval_report.json").exists():
+            cit = (_load_json(_bdir() / "eval_report.json") or {}).get("citations") or {}
     except Exception:
         cit = {}
 
@@ -381,18 +395,92 @@ def api_status():
     return {
         "ok": True,
         "mode": mode(),
-        "build_dir": str(BUILD_DIR),
-        "data_dir": str(DATA_DIR),
-        "data_dir_present": DATA_DIR.exists(),
+        "build_dir": str(_bdir()),
+        "data_dir": str(_ddir()),
+        "data_dir_present": _ddir().exists(),
         "artifacts": {
-            "findings_json": (BUILD_DIR / "findings.json").exists(),
-            "manifest_json": (BUILD_DIR / "manifest.json").exists(),
-            "audit_duckdb": (BUILD_DIR / "audit.duckdb").exists(),
+            "findings_json": (_bdir() / "findings.json").exists(),
+            "manifest_json": (_bdir() / "manifest.json").exists(),
+            "audit_duckdb": (_bdir() / "audit.duckdb").exists(),
         },
         "n_findings": len(get_findings()),
         "llm_used": (lambda: bool((lambda d: d.get("meta", {}).get("llm_used") if isinstance(d, dict) else False)(
-            _load_json(BUILD_DIR / "findings.json"))) if (BUILD_DIR / "findings.json").exists() else False)(),
+            _load_json(_bdir() / "findings.json"))) if (_bdir() / "findings.json").exists() else False)(),
     }
+
+
+# --------------------------------------------------------------------------
+# workspaces (switch between built dossiers / companies)
+# --------------------------------------------------------------------------
+
+_WS_ID = re.compile(r"^build[A-Za-z0-9_]*$")
+
+
+def _company_of(data_dir: Path) -> str:
+    key = f"_company::{data_dir}"
+    if key in _cache:
+        return _cache[key]
+    name = data_dir.name
+    idx = data_dir / "Sachkonten" / "index.xml"
+    try:
+        import xml.etree.ElementTree as ET
+        el = ET.parse(idx).getroot().find(".//DataSupplier/Name")
+        if el is not None and el.text:
+            name = el.text.strip()
+    except Exception:
+        pass
+    _cache[key] = name
+    return name
+
+
+def _workspace_info(d: Path) -> Optional[dict]:
+    if not (d / "findings.json").exists() or not (d / "audit.duckdb").exists():
+        return None
+    try:
+        man = json.loads((d / "manifest.json").read_text(encoding="utf-8"))             if (d / "manifest.json").exists() else {}
+    except Exception:
+        man = {}
+    dd = (ROOT / man["data_dir"]) if man.get("data_dir") else _ddir()
+    try:
+        n = len(json.loads((d / "findings.json").read_text(encoding="utf-8"))
+                .get("findings", []))
+    except Exception:
+        n = None
+    return {"id": d.name, "build_dir": str(d), "data_dir": str(dd),
+            "data_dir_rel": man.get("data_dir"),
+            "company": _company_of(dd),
+            "dossier": dd.relative_to(ROOT / "data").as_posix()
+                       if str(dd).startswith(str(ROOT / "data")) else dd.name,
+            "n_findings": n,
+            "generated_at": man.get("generated_at"),
+            "current": d.resolve() == _bdir().resolve()}
+
+
+@app.get("/api/workspaces")
+def api_workspaces():
+    out = []
+    for d in sorted(ROOT.glob("build*")):
+        if d.is_dir() and _WS_ID.match(d.name):
+            info = _workspace_info(d)
+            if info:
+                out.append(info)
+    return out
+
+
+@app.post("/api/workspace")
+def api_workspace_switch(payload: Dict[str, Any]):
+    wsid = str(payload.get("id", ""))
+    if not _WS_ID.match(wsid):
+        raise HTTPException(422, "invalid workspace id")
+    d = (ROOT / wsid).resolve()
+    if not str(d).startswith(str(ROOT.resolve())) or not d.is_dir():
+        raise HTTPException(404, f"workspace {wsid} not found")
+    info = _workspace_info(d)
+    if info is None:
+        raise HTTPException(409, f"{wsid} has no findings.json/audit.duckdb")
+    _WS["build"] = d
+    _WS["data"] = Path(info["data_dir"])
+    return {"ok": True, "workspace": _workspace_info(d)}
 
 
 # --------------------------------------------------------------------------
@@ -477,7 +565,7 @@ def api_render(source_id: str,
     if rec is None:
         raise HTTPException(404, f"source_id {source_id} not found in registry")
     file_rel = rec["file"]
-    path = DATA_DIR / file_rel
+    path = _ddir() / file_rel
     caption = rec.get("display_locator") or file_rel
     kind = rec.get("kind")
     suffix = path.suffix.lower()

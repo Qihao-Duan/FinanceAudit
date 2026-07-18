@@ -412,3 +412,8 @@ ul.plain li { margin: 2px 0; line-height: 1.4; }
 .data-table { font-size: 12.5px; }
 #view-toggle button.active { background: #1f3a5f; color: #fff; }
 main.layout[hidden], #data-view[hidden] { display: none !important; }
+
+#ws-select { max-width: 300px; padding: 4px 8px; border-radius: 5px;
+  border: 1px solid #3d5878; background: #24405f; color: #e8eef5;
+  font: inherit; font-size: 12.5px; }
+#ws-select:focus { outline: 2px solid #7fa4cc; }
