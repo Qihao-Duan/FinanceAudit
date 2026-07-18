@@ -1,0 +1,96 @@
+{
+ "generated": "fixture",
+ "extractor_version": "fixture-v1",
+ "files": [
+  {
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "expected_units": 20258,
+   "parsed_units": 20258,
+   "parse_coverage": "complete",
+   "population_scope": "GL 2025, vollständig (Soll=Haben=345.350.778,06)"
+  },
+  {
+   "file": "Kreditoren/Lieferanten.txt",
+   "expected_units": 150,
+   "parsed_units": 150,
+   "parse_coverage": "complete",
+   "population_scope": "Kreditorenstamm"
+  },
+  {
+   "file": "Kreditoren/Lieferantenbuchungen.txt",
+   "expected_units": 4212,
+   "parsed_units": 4212,
+   "parse_coverage": "complete",
+   "population_scope": "Kreditoren-Nebenbuch (Summe -13.208.855,00)"
+  },
+  {
+   "file": "Debitoren/Kundenbuchungen.txt",
+   "expected_units": 8570,
+   "parsed_units": 8570,
+   "parse_coverage": "complete",
+   "population_scope": "Debitoren-Nebenbuch (Summe +13.412.543,05)"
+  },
+  {
+   "file": "Begleitdokumente/Freigabe-Log_Journale_2025.csv",
+   "expected_units": 91,
+   "parsed_units": 91,
+   "parse_coverage": "complete",
+   "population_scope": "Journalbezogen; Abdeckung der Buchungsmasse UNBEWIESEN — nicht als Vollständigkeitsnachweis verwenden"
+  },
+  {
+   "file": "Begleitdokumente/Wareneingangsliste_2025.csv",
+   "expected_units": 214,
+   "parsed_units": 214,
+   "parse_coverage": "complete",
+   "population_scope": "Nur Material/Logistik; KEINE Dienstleistungen"
+  },
+  {
+   "file": "Begleitdokumente/Stammdatenaenderungen_2025.csv",
+   "expected_units": 38,
+   "parsed_units": 38,
+   "parse_coverage": "complete",
+   "population_scope": "Stammdatenänderungen 2025"
+  },
+  {
+   "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx",
+   "expected_units": 12,
+   "parsed_units": 12,
+   "parse_coverage": "complete",
+   "population_scope": "Benutzerberechtigungen per 31.12.2025"
+  },
+  {
+   "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+   "expected_units": 9,
+   "parsed_units": 9,
+   "parse_coverage": "complete",
+   "population_scope": "Prüfungsplanung (Schwellenwerte)"
+  },
+  {
+   "file": "Begleitdokumente/Exportprotokoll_GDPdU_2025.pdf",
+   "expected_units": 1,
+   "parsed_units": 1,
+   "parse_coverage": "complete",
+   "population_scope": "Exportprotokoll mit SHA-256 je Datei"
+  },
+  {
+   "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv",
+   "expected_units": 6,
+   "parsed_units": 6,
+   "parse_coverage": "complete",
+   "population_scope": "Gesellschafter und verbundene Unternehmen"
+  }
+ ],
+ "hash_verification": "8/8 GDPdU-Textdateien: SHA-256 stimmt mit Exportprotokoll überein",
+ "gl_balance": {
+  "soll": 345350778.06,
+  "haben": 345350778.06,
+  "difference": 0.0
+ },
+ "lock_date": "2026-01-20",
+ "thresholds": {
+  "overall_materiality": 400000,
+  "performance_materiality": 300000,
+  "jet_sampling": 25000,
+  "payment_dual_approval": 10000
+ }
+}

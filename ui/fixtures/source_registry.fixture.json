@@ -1,0 +1,353 @@
+{
+ "files": {
+  "Sachkonten/Sachkontobuchungen.txt": {
+   "format": "delimited",
+   "encoding": "cp1252",
+   "delimiter": ";",
+   "quotechar": "\"",
+   "has_header": false,
+   "columns": [
+    "SACHKONTONUMMER",
+    "PERIODENCODE",
+    "STEUERBUCHUNGSREFERENZ",
+    "PERIODENZUGEHOERIGKEIT",
+    "BUCHUNGSTYP",
+    "KORREKTUR",
+    "HABENBUCHUNG",
+    "BUCHUNGSBETRAG",
+    "BUCHUNGSWAEHRUNG",
+    "BUCHUNGSWERT",
+    "BUCHUNGSTEXT",
+    "BUCHUNGSDATUM",
+    "BUCHUNGSNUMMER",
+    "BELEGDATUM",
+    "BELEGNUMMER",
+    "SPEZIALBUCHUNG",
+    "ERFASSUNGSNUMMER",
+    "JOURNALZEILE",
+    "GEGENKONTO",
+    "DOKUMENT",
+    "BENUTZERKENNUNG",
+    "ERFASSUNGSDATUM",
+    "ERFASSUNGSZEIT",
+    "FESTSCHREIBUNG"
+   ]
+  },
+  "Kreditoren/Lieferanten.txt": {
+   "format": "delimited",
+   "encoding": "cp1252",
+   "delimiter": ";",
+   "quotechar": "\"",
+   "has_header": false,
+   "columns": [
+    "KONTONUMMER",
+    "USTID",
+    "STRASSE",
+    "PLZ",
+    "ORT",
+    "LAND",
+    "NAME",
+    "GRUPPE",
+    "FELD9",
+    "MWST_GRUPPE",
+    "WAEHRUNG"
+   ]
+  },
+  "Begleitdokumente/Stammdatenaenderungen_2025.csv": {
+   "format": "delimited",
+   "encoding": "cp1252",
+   "delimiter": ";",
+   "quotechar": "\"",
+   "has_header": true,
+   "columns": null
+  },
+  "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv": {
+   "format": "delimited",
+   "encoding": "cp1252",
+   "delimiter": ";",
+   "quotechar": "\"",
+   "has_header": true,
+   "columns": null
+  },
+  "Begleitdokumente/Berechtigungsauswertung_2025.xlsx": {
+   "format": "xlsx",
+   "sheet": "Berechtigungen",
+   "header_row": 3
+  },
+  "Begleitdokumente/Pruefungsplanung_JET_2025.docx": {
+   "format": "docx"
+  },
+  "Begleitdokumente/Exportprotokoll_GDPdU_2025.pdf": {
+   "format": "pdf"
+  }
+ },
+ "sources": {
+  "71b742e512426ded": {
+   "source_id": "71b742e512426ded",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20163,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20164 · Kreditorenrechnung ER901416 209101"
+  },
+  "7c717809945da558": {
+   "source_id": "7c717809945da558",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20168,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20169 · Kreditorenrechnung ER901417 209101"
+  },
+  "3b88bfec6b100b4a": {
+   "source_id": "3b88bfec6b100b4a",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20173,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20174 · Kreditorenrechnung ER901418 209101"
+  },
+  "a37205cb1f1d3628": {
+   "source_id": "a37205cb1f1d3628",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20178,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20179 · Kreditorenrechnung ER901419 209101"
+  },
+  "2145647722f38287": {
+   "source_id": "2145647722f38287",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20183,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20184 · Kreditorenrechnung ER901420 209101"
+  },
+  "2731dee4251652b8": {
+   "source_id": "2731dee4251652b8",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20164,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20165 · Zahlung ER901416 209101"
+  },
+  "63076c92697efd50": {
+   "source_id": "63076c92697efd50",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20169,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20170 · Zahlung ER901417 209101"
+  },
+  "908dcdcbaa8fa6d5": {
+   "source_id": "908dcdcbaa8fa6d5",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20174,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20175 · Zahlung ER901418 209101"
+  },
+  "4b28bcaa3f1d4887": {
+   "source_id": "4b28bcaa3f1d4887",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20179,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20180 · Zahlung ER901419 209101"
+  },
+  "22b6db89f1aeea78": {
+   "source_id": "22b6db89f1aeea78",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20184,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20185 · Zahlung ER901420 209101"
+  },
+  "3338d1651f6169cd": {
+   "source_id": "3338d1651f6169cd",
+   "file": "Kreditoren/Lieferanten.txt",
+   "kind": "cell_row",
+   "row_no": 130,
+   "display_locator": "Kreditoren/Lieferanten.txt · Zeile 131 · Kreditor 209101 Ratio Consulting GmbH"
+  },
+  "9f320ff70b9acbeb": {
+   "source_id": "9f320ff70b9acbeb",
+   "file": "Begleitdokumente/Stammdatenaenderungen_2025.csv",
+   "kind": "cell_row",
+   "row_no": 7,
+   "display_locator": "Begleitdokumente/Stammdatenaenderungen_2025.csv · Zeile 8 · Neuanlage Kreditor 209101, 12.05.2025"
+  },
+  "d52862c9322e462e": {
+   "source_id": "d52862c9322e462e",
+   "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx",
+   "kind": "cell_row",
+   "row_no": 7,
+   "display_locator": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx · Blatt 'Berechtigungen' · Zeile 7 · Benutzer MV-U05 (Einkauf)"
+  },
+  "a032f0554b529493": {
+   "source_id": "a032f0554b529493",
+   "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+   "kind": "para",
+   "para_no": 4,
+   "display_locator": "Begleitdokumente/Pruefungsplanung_JET_2025.docx · Absatz 5 · Zahlungsfreigaben ab 10.000 EUR"
+  },
+  "c6168028c0d68838": {
+   "source_id": "c6168028c0d68838",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20206,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20207 · Zahlung AZ6602865 200007"
+  },
+  "0e62568c31461b55": {
+   "source_id": "0e62568c31461b55",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20208,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20209 · Zahlung AZ6602866 200007"
+  },
+  "966bab7d7a920985": {
+   "source_id": "966bab7d7a920985",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20210,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20211 · Zahlung AZ6602867 200007"
+  },
+  "90f125d90119ee2d": {
+   "source_id": "90f125d90119ee2d",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20212,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20213 · Zahlung AZ6602868 200007"
+  },
+  "0e55d981ea3e6a3a": {
+   "source_id": "0e55d981ea3e6a3a",
+   "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx",
+   "kind": "cell_row",
+   "row_no": 10,
+   "display_locator": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx · Blatt 'Berechtigungen' · Zeile 10 · Benutzer MV-U11 (Zahlungsverkehr)"
+  },
+  "0b3d34a399ac88db": {
+   "source_id": "0b3d34a399ac88db",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20186,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20187 · Aktivierung ER901421"
+  },
+  "416fc7e76e5d66a0": {
+   "source_id": "416fc7e76e5d66a0",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20189,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20190 · Aktivierung ER901422"
+  },
+  "b6f3f782340aa73a": {
+   "source_id": "b6f3f782340aa73a",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20192,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20193 · Aktivierung ER901423"
+  },
+  "e2f83fdc6dbac109": {
+   "source_id": "e2f83fdc6dbac109",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20195,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20196 · Aktivierung ER901424"
+  },
+  "da4cbb9d5f427c43": {
+   "source_id": "da4cbb9d5f427c43",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20198,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20199 · Aktivierung ER901425"
+  },
+  "497f187718c2b06e": {
+   "source_id": "497f187718c2b06e",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20201,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20202 · Aktivierung ER901426"
+  },
+  "23b8d45530d1ed9d": {
+   "source_id": "23b8d45530d1ed9d",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20187,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20188 · USt-Zeile ER901421"
+  },
+  "df5e418b57220c1a": {
+   "source_id": "df5e418b57220c1a",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20190,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20191 · USt-Zeile ER901422"
+  },
+  "e03783df02d2aedd": {
+   "source_id": "e03783df02d2aedd",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20193,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20194 · USt-Zeile ER901423"
+  },
+  "8bfb75686615b948": {
+   "source_id": "8bfb75686615b948",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20196,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20197 · USt-Zeile ER901424"
+  },
+  "7f38be6f583f4398": {
+   "source_id": "7f38be6f583f4398",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20199,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20200 · USt-Zeile ER901425"
+  },
+  "2052d49cf7ccf03c": {
+   "source_id": "2052d49cf7ccf03c",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20202,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20203 · USt-Zeile ER901426"
+  },
+  "ff4a53bcaf0e7d2b": {
+   "source_id": "ff4a53bcaf0e7d2b",
+   "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+   "kind": "para",
+   "para_no": 5,
+   "display_locator": "Begleitdokumente/Pruefungsplanung_JET_2025.docx · Absatz 6 · Selektionskriterium K3: reparaturtypische Bezeichnung"
+  },
+  "3bff9ee4ad6e707b": {
+   "source_id": "3bff9ee4ad6e707b",
+   "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv",
+   "kind": "cell_row",
+   "row_no": 5,
+   "display_locator": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv · Zeile 6 · Verbundene Unternehmen, Zeile 6"
+  },
+  "a7b9a8aa911412ff": {
+   "source_id": "a7b9a8aa911412ff",
+   "file": "Kreditoren/Lieferanten.txt",
+   "kind": "cell_row",
+   "row_no": 142,
+   "display_locator": "Kreditoren/Lieferanten.txt · Zeile 143 · Kreditor 209113"
+  },
+  "faa6fbb360533110": {
+   "source_id": "faa6fbb360533110",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20214,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20215 · ER901435 Zeile 20214"
+  },
+  "4be2f3537c1a7f2b": {
+   "source_id": "4be2f3537c1a7f2b",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20215,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20216 · ER901435 Zeile 20215"
+  },
+  "fb207f44b4ba31c6": {
+   "source_id": "fb207f44b4ba31c6",
+   "file": "Sachkonten/Sachkontobuchungen.txt",
+   "kind": "cell_row",
+   "row_no": 20216,
+   "display_locator": "Sachkonten/Sachkontobuchungen.txt · Zeile 20217 · ER901435 Zeile 20216"
+  },
+  "a5f404cb4fcf2854": {
+   "source_id": "a5f404cb4fcf2854",
+   "file": "Begleitdokumente/Exportprotokoll_GDPdU_2025.pdf",
+   "kind": "page",
+   "page_index": 0,
+   "page_label": "1",
+   "display_locator": "Begleitdokumente/Exportprotokoll_GDPdU_2025.pdf · Seite 1 · Exportprotokoll, Dateiliste"
+  }
+ }
+}

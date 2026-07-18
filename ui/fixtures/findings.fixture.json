@@ -1,0 +1,1038 @@
+[
+ {
+  "finding_id": "F-0001",
+  "title": "Kreditor 209101 Ratio Consulting GmbH — Kontrollumfeld-Anomalie / vendor-control anomaly",
+  "scheme": "fictitious_vendor",
+  "mechanism": "vendor_subledger_via_gl",
+  "anomaly_type": "contextual",
+  "reporting_status": "finding",
+  "entity_key": "vendor:209101",
+  "entity_label": "Ratio Consulting GmbH (209101)",
+  "amount_eur": 248000.0,
+  "description": "Kreditor 209101 wurde am 12.05.2025 durch MV-U05 angelegt und durch denselben Benutzer genehmigt; fünf Beratungsrechnungen (netto 248.000 EUR) wurden jeweils innerhalb von zwei Tagen bezahlt; der im Buchungstext zitierte Rahmenvertrag ist im Dossier nicht auffindbar.",
+  "claims": [
+   {
+    "claim_id": "F-0001-C1",
+    "role": "core",
+    "type": "numerical",
+    "assertion": "Kreditor 209101 (Ratio Consulting GmbH) erhielt 2025 fünf Kreditorenrechnungen mit Bruttosumme 295.120,00 EUR (ER901416–ER901420).",
+    "value": {
+     "kind": "amount",
+     "value": 295120.0,
+     "currency_or_unit": "EUR",
+     "formula": "sum(BUCHUNGSBETRAG[ER901416..ER901420, Konto 330000-209101, Kreditorenrechnung]) = 53550.00+71400.00+45220.00+61880.00+63070.00",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "2394f32ffe7f",
+     "operand_refs": [
+      "71b742e512426ded",
+      "7c717809945da558",
+      "3b88bfec6b100b4a",
+      "a37205cb1f1d3628",
+      "2145647722f38287"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "71b742e512426ded",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20163
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-53.550,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "7c717809945da558",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20168
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-71.400,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "3b88bfec6b100b4a",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20173
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-45.220,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "a37205cb1f1d3628",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20178
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-61.880,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "2145647722f38287",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20183
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-63.070,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0001-C2",
+    "role": "core",
+    "type": "computational",
+    "assertion": "Der Nettowert der fünf Rechnungen beträgt 248.000,00 EUR (Brutto 295.120,00 / 1,19 bei 19% USt).",
+    "value": {
+     "kind": "amount",
+     "value": 248000.0,
+     "currency_or_unit": "EUR",
+     "formula": "295120.00 / 1.19",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "25d97c3d01a2",
+     "operand_refs": [
+      "F-0001-C1"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "71b742e512426ded",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20163,
+       20168,
+       20173,
+       20178,
+       20183
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "Summe brutto 295.120,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0001-C3",
+    "role": "core",
+    "type": "entity_attribute",
+    "assertion": "Die Neuanlage des Kreditors 209101 am 12.05.2025 wurde von MV-U05 durchgeführt und von MV-U05 genehmigt (GEAENDERT_VON = GENEHMIGT_VON).",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "9f320ff70b9acbeb",
+      "file": "Begleitdokumente/Stammdatenaenderungen_2025.csv",
+      "row_ids": [
+       7
+      ],
+      "col": "GEAENDERT_VON/GENEHMIGT_VON",
+      "cell_value": "MV-U05;MV-U05"
+     },
+     {
+      "kind": "cell",
+      "source_id": "3338d1651f6169cd",
+      "file": "Kreditoren/Lieferanten.txt",
+      "row_ids": [
+       130
+      ],
+      "col": "NAME",
+      "cell_value": "Ratio Consulting GmbH"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0001-C4",
+    "role": "supporting",
+    "type": "temporal",
+    "assertion": "Alle fünf Rechnungen wurden jeweils 2 Tage nach Rechnungsdatum bezahlt (z.B. ER901416: Rechnung 19.05.2025, Zahlung 21.05.2025).",
+    "value": {
+     "kind": "count",
+     "value": 5,
+     "currency_or_unit": "Zahlungen ≤ 2 Tage",
+     "formula": "count(pay_date - inv_date <= 2d)",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "4b8379ae8df1",
+     "operand_refs": [
+      "2731dee4251652b8",
+      "63076c92697efd50",
+      "908dcdcbaa8fa6d5",
+      "4b28bcaa3f1d4887",
+      "22b6db89f1aeea78"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "2731dee4251652b8",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20164
+      ],
+      "col": "BUCHUNGSDATUM",
+      "cell_value": "21.05.2025"
+     },
+     {
+      "kind": "cell",
+      "source_id": "63076c92697efd50",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20169
+      ],
+      "col": "BUCHUNGSDATUM",
+      "cell_value": "06.07.2025"
+     },
+     {
+      "kind": "cell",
+      "source_id": "908dcdcbaa8fa6d5",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20174
+      ],
+      "col": "BUCHUNGSDATUM",
+      "cell_value": "17.09.2025"
+     },
+     {
+      "kind": "cell",
+      "source_id": "4b28bcaa3f1d4887",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20179
+      ],
+      "col": "BUCHUNGSDATUM",
+      "cell_value": "12.11.2025"
+     },
+     {
+      "kind": "cell",
+      "source_id": "22b6db89f1aeea78",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20184
+      ],
+      "col": "BUCHUNGSDATUM",
+      "cell_value": "20.12.2025"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0001-C5",
+    "role": "supporting",
+    "type": "entity_attribute",
+    "assertion": "MV-U05 (Einkauf) verfügt laut Berechtigungsauswertung zugleich über Buchungs-, Zahlungslauf- und Kreditorenanlage-Rechte.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "d52862c9322e462e",
+      "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx",
+      "row_ids": [
+       7
+      ],
+      "col": "Buchen/Zahlungslauf/Stammdaten",
+      "cell_value": "X/X/X"
+     },
+     {
+      "kind": "passage",
+      "source_id": "a032f0554b529493",
+      "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+      "page_index": 0,
+      "page_label": "1",
+      "quote": "Funktionstrennung zwischen Kreditoren-Stammdaten",
+      "locator_precision": "quote_rect",
+      "para_no": 4
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0001-C6",
+    "role": "supporting",
+    "type": "absence",
+    "assertion": "Der in allen fünf Buchungstexten referenzierte 'Rahmenvertrag' ist keinem Dokument des Dossiers zuordenbar; zu 209101 existiert kein Wareneingang.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "71b742e512426ded",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20163
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Beratungsleistungen lt. Rahmenvertrag"
+     }
+    ],
+    "verdict": "supported"
+   }
+  ],
+  "expected_evidence": [
+   "Rahmenvertrag Beratungsleistungen",
+   "Unabhängige Freigabe der Kreditorenanlage",
+   "Leistungsnachweise zu ER901416–ER901420"
+  ],
+  "missing_evidence": [
+   {
+    "item": "Rahmenvertrag Beratungsleistungen 209101",
+    "status": "not_provided",
+    "note": "Im Buchungstext referenziert; im Dossier nicht enthalten."
+   },
+   {
+    "item": "Leistungsnachweise Beratung",
+    "status": "not_provided",
+    "note": "Dienstleistung — Wareneingangsliste umfasst nur Material/Logistik (population scope)."
+   }
+  ],
+  "pbc_requests": [
+   "Rahmenvertrag mit Ratio Consulting GmbH (209101)",
+   "Leistungsnachweise / Stundenaufstellungen zu ER901416–ER901420",
+   "Bankverbindungsnachweis und Zahlungsbelege (Kontoauszüge) zu AZ6602859–AZ6602863"
+  ],
+  "counterevidence": [],
+  "innocence_checked": [
+   {
+    "predicate": "Wareneingang/Abnahme vorhanden?",
+    "checked": true,
+    "result": "Kein Eintrag zu 209101 in Wareneingangsliste_2025 (Scope: Material/Logistik, Dienstleistungen nicht enthalten).",
+    "outcome": "no_counterevidence"
+   },
+   {
+    "predicate": "Vertragsreferenz auflösbar?",
+    "checked": true,
+    "result": "'Rahmenvertrag' in keinem Begleitdokument auffindbar.",
+    "outcome": "no_counterevidence"
+   },
+   {
+    "predicate": "Unabhängige Genehmigung?",
+    "checked": true,
+    "result": "Stammdatenänderung: Ersteller = Genehmiger (MV-U05).",
+    "outcome": "no_counterevidence"
+   },
+   {
+    "predicate": "Normale Kontohistorie?",
+    "checked": true,
+    "result": "Erste Aktivität 12.05.2025; ausschließlich die fünf Beratungsrechnungen.",
+    "outcome": "no_counterevidence"
+   }
+  ],
+  "parser_coverage": "complete",
+  "denominators": {
+   "population_size": 8391,
+   "rule_hits": 1,
+   "peers_with_expected_evidence": 0,
+   "defender_rejected_hits": 0
+  },
+  "disposition": "report",
+  "llm_used": false
+ },
+ {
+  "finding_id": "F-0002",
+  "title": "Kreditor 200007 — vier Teilzahlungen unter Freigabegrenze am selben Tag / threshold splitting",
+  "scheme": "threshold_splitting",
+  "mechanism": "payment_layer_gl",
+  "anomaly_type": "rule_based",
+  "reporting_status": "finding",
+  "entity_key": "vendor:200007",
+  "entity_label": "Kreditor 200007",
+  "amount_eur": 39040.0,
+  "description": "Am 14.10.2025 wurden vier Zahlungen (9.780 / 9.820 / 9.750 / 9.690 EUR) an Kreditor 200007 unter derselben Belegnummer SAMMEL-200007 erfasst; jede Einzelzahlung liegt unter der Freigabegrenze von 10.000 EUR, die Summe (39.040 EUR) darüber.",
+  "claims": [
+   {
+    "claim_id": "F-0002-C1",
+    "role": "core",
+    "type": "numerical",
+    "assertion": "Am 14.10.2025 wurden vier Zahlungen an Kreditor 200007 mit Gesamtsumme 39.040,00 EUR gebucht (Belegnummer jeweils SAMMEL-200007, Benutzer MV-U11).",
+    "value": {
+     "kind": "amount",
+     "value": 39040.0,
+     "currency_or_unit": "EUR",
+     "formula": "9780.00 + 9820.00 + 9750.00 + 9690.00",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "4eb5b9c42bfd",
+     "operand_refs": [
+      "c6168028c0d68838",
+      "0e62568c31461b55",
+      "966bab7d7a920985",
+      "90f125d90119ee2d"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "c6168028c0d68838",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20206
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "9.780,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "0e62568c31461b55",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20208
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "9.820,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "966bab7d7a920985",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20210
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "9.750,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "90f125d90119ee2d",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20212
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "9.690,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0002-C2",
+    "role": "core",
+    "type": "comparative",
+    "assertion": "Jede der vier Einzelzahlungen (max. 9.820,00 EUR) liegt unter der Grenze von 10.000 EUR, ab der laut Prüfungsplanung eine zweite Freigabe erforderlich ist; die Gesamtsumme liegt darüber.",
+    "value": {
+     "kind": "amount",
+     "value": 10000.0,
+     "currency_or_unit": "EUR",
+     "formula": "max(9780, 9820, 9750, 9690) < 10000 <= 39040",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "ab253c541401",
+     "operand_refs": [
+      "0e62568c31461b55",
+      "a032f0554b529493"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "passage",
+      "source_id": "a032f0554b529493",
+      "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+      "page_index": 0,
+      "page_label": "1",
+      "quote": "Zahlungsfreigaben ab 10.000 EUR erfordern eine zweite Freigabe",
+      "locator_precision": "quote_rect",
+      "para_no": 4
+     },
+     {
+      "kind": "cell",
+      "source_id": "0e62568c31461b55",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20208
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "9.820,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0002-C3",
+    "role": "supporting",
+    "type": "entity_attribute",
+    "assertion": "Alle vier Zahlungen tragen dieselbe Belegnummer SAMMEL-200007 — konsistent mit einer einzelnen zugrunde liegenden Verbindlichkeit.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "c6168028c0d68838",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20206
+      ],
+      "col": "BELEGNUMMER",
+      "cell_value": "SAMMEL-200007"
+     },
+     {
+      "kind": "cell",
+      "source_id": "0e62568c31461b55",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20208
+      ],
+      "col": "BELEGNUMMER",
+      "cell_value": "SAMMEL-200007"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0002-C4",
+    "role": "supporting",
+    "type": "entity_attribute",
+    "assertion": "Buchender Benutzer MV-U11 (Zahlungsverkehr) besitzt Zahlungslauf-Rechte, aber keine Freigaberechte.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "0e55d981ea3e6a3a",
+      "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx",
+      "row_ids": [
+       10
+      ],
+      "col": "Zahlungslauf",
+      "cell_value": "X"
+     }
+    ],
+    "verdict": "supported"
+   }
+  ],
+  "expected_evidence": [
+   "Ursprüngliche Lieferantenrechnung(en) zu SAMMEL-200007",
+   "Sammelzahlungs- oder Ratenzahlungsvereinbarung",
+   "Zweitfreigabe"
+  ],
+  "missing_evidence": [
+   {
+    "item": "Originalrechnung zu SAMMEL-200007",
+    "status": "not_provided",
+    "note": "Belegnummer verweist auf Sammelbeleg, keine Einzelrechnung im Dossier."
+   },
+   {
+    "item": "Zweitfreigabe / Vier-Augen-Nachweis",
+    "status": "not_provided",
+    "note": "Freigabe-Log ist journalbezogen; Zahlungsfreigaben nicht enthalten (coverage unproven)."
+   }
+  ],
+  "pbc_requests": [
+   "Originalrechnung(en) und Zahlungsavis zu SAMMEL-200007 (Kreditor 200007)",
+   "Nachweis einer Sammelzahlungs-Autorisierung oder Ratenvereinbarung"
+  ],
+  "counterevidence": [],
+  "innocence_checked": [
+   {
+    "predicate": "Sammelzahlungs-Autorisierung vorhanden?",
+    "checked": true,
+    "result": "Keine Autorisierung im Dossier auffindbar.",
+    "outcome": "no_counterevidence"
+   },
+   {
+    "predicate": "Ratenzahlungsvereinbarung?",
+    "checked": true,
+    "result": "Kein Vertragsdokument im Dossier.",
+    "outcome": "no_counterevidence"
+   },
+   {
+    "predicate": "Gemeinsame Ursprungsschuld?",
+    "checked": true,
+    "result": "Identische Belegnummer SAMMEL-200007 auf allen vier Zahlungen (spricht für eine einzelne Schuld; erhöht Einstufung).",
+    "outcome": "corroborates"
+   }
+  ],
+  "parser_coverage": "complete",
+  "denominators": {
+   "population_size": 4212,
+   "rule_hits": 1,
+   "peers_with_expected_evidence": 0,
+   "defender_rejected_hits": 0
+  },
+  "disposition": "report",
+  "llm_used": false
+ },
+ {
+  "finding_id": "F-0003",
+  "title": "Sechs Anlagenzugänge mit reparaturtypischer Bezeichnung (netto 150.800 EUR) / repair-named capitalizations",
+  "scheme": "expense_capitalization",
+  "mechanism": "asset_layer_gl",
+  "anomaly_type": "contextual",
+  "reporting_status": "verify",
+  "entity_key": "account:040000/060000",
+  "entity_label": "Anlagenzugänge ER901421–ER901426",
+  "amount_eur": 150800.0,
+  "description": "Sechs Anlagenzugänge 2025 (netto 150.800 EUR, ER901421–ER901426) tragen Buchungstexte mit reparaturtypischer Bezeichnung (Reparatur/Austausch/Instandsetzung/Generalüberholung). Alternative Erklärung — aktivierungsfähiger Komponententausch — ist ohne technische Beurteilung nicht ausschließbar; Einstufung: zu verifizieren.",
+  "claims": [
+   {
+    "claim_id": "F-0003-C1",
+    "role": "core",
+    "type": "numerical",
+    "assertion": "Sechs Anlagenzugänge (ER901421–ER901426) summieren sich auf netto 150.800,00 EUR.",
+    "value": {
+     "kind": "amount",
+     "value": 150800.0,
+     "currency_or_unit": "EUR",
+     "formula": "28000.00 + 34000.00 + 15500.00 + 41000.00 + 12800.00 + 19500.00",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "f8161436ced8",
+     "operand_refs": [
+      "0b3d34a399ac88db",
+      "416fc7e76e5d66a0",
+      "b6f3f782340aa73a",
+      "e2f83fdc6dbac109",
+      "da4cbb9d5f427c43",
+      "497f187718c2b06e"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "0b3d34a399ac88db",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20186
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "28.000,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "416fc7e76e5d66a0",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20189
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "34.000,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "b6f3f782340aa73a",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20192
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "15.500,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "e2f83fdc6dbac109",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20195
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "41.000,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "da4cbb9d5f427c43",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20198
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "12.800,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "497f187718c2b06e",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20201
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "19.500,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0003-C2",
+    "role": "core",
+    "type": "entity_attribute",
+    "assertion": "Die zugehörigen USt-/Kreditorzeilen derselben Belege tragen reparaturtypische Buchungstexte (Reparatur, Austausch, Instandsetzung, Generalüberholung).",
+    "value": {
+     "kind": "count",
+     "value": 6,
+     "currency_or_unit": "Belege",
+     "formula": "count(text matches repair-typical vocabulary)",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "b610d2393fae",
+     "operand_refs": [
+      "23b8d45530d1ed9d",
+      "df5e418b57220c1a",
+      "e03783df02d2aedd",
+      "8bfb75686615b948",
+      "7f38be6f583f4398",
+      "2052d49cf7ccf03c"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "23b8d45530d1ed9d",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20187
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Reparatur Konfektioniermaschine Linie 2"
+     },
+     {
+      "kind": "cell",
+      "source_id": "df5e418b57220c1a",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20190
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Austausch Hydraulikaggregat Presse 3"
+     },
+     {
+      "kind": "cell",
+      "source_id": "e03783df02d2aedd",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20193
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Instandsetzung Förderband Halle II"
+     },
+     {
+      "kind": "cell",
+      "source_id": "8bfb75686615b948",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20196
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Generalüberholung Stanzautomat"
+     },
+     {
+      "kind": "cell",
+      "source_id": "7f38be6f583f4398",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20199
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Reparatur Kälteanlage Lager"
+     },
+     {
+      "kind": "cell",
+      "source_id": "2052d49cf7ccf03c",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20202
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Austausch Antriebssteuerung Palettierer"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0003-C3",
+    "role": "supporting",
+    "type": "comparative",
+    "assertion": "Das Selektionskriterium K3 der Prüfungsplanung adressiert genau dieses Muster (Zugänge im Anlagevermögen mit reparaturtypischer Bezeichnung).",
+    "value": null,
+    "citations": [
+     {
+      "kind": "passage",
+      "source_id": "ff4a53bcaf0e7d2b",
+      "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx",
+      "page_index": 0,
+      "page_label": "1",
+      "quote": "Zugänge im Anlagevermögen mit reparaturtypischer Bezeichnung",
+      "locator_precision": "quote_rect",
+      "para_no": 5
+     }
+    ],
+    "verdict": "supported"
+   }
+  ],
+  "expected_evidence": [
+   "Technische Beurteilung / Aktivierungsentscheidung je Beleg",
+   "Anlagenkarten mit AfA-Beginn",
+   "Lieferantenrechnungen ER901421–ER901426"
+  ],
+  "missing_evidence": [
+   {
+    "item": "Technische Beurteilung der sechs Maßnahmen",
+    "status": "not_provided",
+    "note": "Keine Aktivierungsbegründung im Dossier."
+   }
+  ],
+  "pbc_requests": [
+   "Rechnungen und technische Beschreibung zu ER901421–ER901426",
+   "Aktivierungsrichtlinie (Komponentenansatz) der Gesellschaft"
+  ],
+  "counterevidence": [],
+  "innocence_checked": [
+   {
+    "predicate": "Aktivierungsfähiger Komponententausch?",
+    "checked": true,
+    "result": "Nicht ausschließbar — keine technische Dokumentation im Dossier; daher Einstufung 'verify', keine Absichtsaussage.",
+    "outcome": "inconclusive"
+   },
+   {
+    "predicate": "AfA normal gestartet?",
+    "checked": true,
+    "result": "Planmäßige AfA 2025 unverändert 34.800,38 EUR × 12 — keine Anpassung an Zugänge erkennbar.",
+    "outcome": "no_counterevidence"
+   }
+  ],
+  "parser_coverage": "complete",
+  "denominators": {
+   "population_size": 61,
+   "rule_hits": 6,
+   "peers_with_expected_evidence": 55,
+   "defender_rejected_hits": 0
+  },
+  "disposition": "report",
+  "llm_used": false
+ },
+ {
+  "finding_id": "F-0004",
+  "title": "Kreditor 209113 — Identitätskonflikt zwischen Gesellschafterliste und Kreditorenstamm / entity conflict",
+  "scheme": "related_party",
+  "mechanism": "masterdata_layer",
+  "anomaly_type": "contextual",
+  "reporting_status": "observation",
+  "entity_key": "vendor:209113",
+  "entity_label": "Kreditor 209113",
+  "amount_eur": 220000.0,
+  "description": "Die Gesellschafterliste ordnet das Personenkonto Kreditor 209113 der Schwestergesellschaft Muster Verpackung Austria GmbH zu; der Kreditorenstamm führt 209113 als Muster Beteiligungs GmbH, Wien (Muttergesellschaft). Beide Dokumente stammen aus demselben Dossier; der Konflikt betrifft die Zuordnung der Konzernumlage von 220.000 EUR.",
+  "claims": [
+   {
+    "claim_id": "F-0004-C1",
+    "role": "core",
+    "type": "entity_attribute",
+    "assertion": "Die Gesellschafterliste (Zeile 6) weist 'Personenkonto Kreditor 209113' der Muster Verpackung Austria GmbH (Schwestergesellschaft) zu.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "3bff9ee4ad6e707b",
+      "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv",
+      "row_ids": [
+       5
+      ],
+      "col": "BEMERKUNG",
+      "cell_value": "Personenkonto Kreditor 209113"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0004-C2",
+    "role": "core",
+    "type": "entity_attribute",
+    "assertion": "Der Kreditorenstamm führt Konto 209113 unter dem Namen 'Muster Beteiligungs GmbH, Wien' (laut Gesellschafterliste die Muttergesellschaft).",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "a7b9a8aa911412ff",
+      "file": "Kreditoren/Lieferanten.txt",
+      "row_ids": [
+       142
+      ],
+      "col": "NAME",
+      "cell_value": "Muster Beteiligungs GmbH, Wien"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0004-C3",
+    "role": "core",
+    "type": "comparative",
+    "assertion": "Die beiden Dokumente ordnen dasselbe Personenkonto 209113 zwei verschiedenen Konzerngesellschaften zu — ein Dokumentenkonflikt innerhalb des Dossiers.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "3bff9ee4ad6e707b",
+      "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv",
+      "row_ids": [
+       5
+      ],
+      "col": "NAME",
+      "cell_value": "Muster Verpackung Austria GmbH (AUT)"
+     },
+     {
+      "kind": "cell",
+      "source_id": "a7b9a8aa911412ff",
+      "file": "Kreditoren/Lieferanten.txt",
+      "row_ids": [
+       142
+      ],
+      "col": "NAME",
+      "cell_value": "Muster Beteiligungs GmbH, Wien"
+     }
+    ],
+    "verdict": "supported"
+   }
+  ],
+  "expected_evidence": [
+   "Konzernumlagevertrag mit Verteilungsschlüssel",
+   "Klärung der Kontenzuordnung 209113"
+  ],
+  "missing_evidence": [
+   {
+    "item": "Konzernumlagevertrag",
+    "status": "not_provided",
+    "note": "Umlagebasis nicht im Dossier."
+   }
+  ],
+  "pbc_requests": [
+   "Konzernumlagevertrag inkl. Verteilungsschlüssel",
+   "Bestätigung, welcher Konzerngesellschaft Konto 209113 zugeordnet ist"
+  ],
+  "counterevidence": [],
+  "innocence_checked": [
+   {
+    "predicate": "Vereinbarung + Umlagebasis + Angabe konsistent?",
+    "checked": true,
+    "result": "Vertrag nicht im Dossier; Konsistenz nicht prüfbar.",
+    "outcome": "inconclusive"
+   },
+   {
+    "predicate": "Entität eindeutig identifiziert?",
+    "checked": true,
+    "result": "Widersprüchliche Zuordnung in zwei Dossier-Dokumenten (USt-ID AT847854029 im Stamm).",
+    "outcome": "counterevidence_conflict"
+   }
+  ],
+  "parser_coverage": "complete",
+  "denominators": {
+   "population_size": 2,
+   "rule_hits": 1,
+   "peers_with_expected_evidence": 0,
+   "defender_rejected_hits": 0
+  },
+  "disposition": "observation",
+  "llm_used": false
+ },
+ {
+  "finding_id": "F-0005",
+  "title": "Anlagenzugang 480.000 EUR (ER901435) — referenzierter Investitionsantrag IA-2025-04 nicht im Dossier / unresolved reference",
+  "scheme": "controls_breach",
+  "mechanism": "asset_layer_gl",
+  "anomaly_type": "rule_based",
+  "reporting_status": "verify",
+  "entity_key": "doc:IA-2025-04",
+  "entity_label": "Investitionsantrag IA-2025-04 (ER901435)",
+  "amount_eur": 480000.0,
+  "description": "Der Anlagenzugang über 480.000 EUR netto (Beleg ER901435, 17.06.2025) verweist im Buchungstext auf 'Investitionsantrag IA-2025-04'. Das referenzierte Dokument ist im Dossier nicht enthalten; die Kernaussage zur Genehmigung ist damit nicht verifizierbar (insufficient evidence).",
+  "claims": [
+   {
+    "claim_id": "F-0005-C1",
+    "role": "supporting",
+    "type": "numerical",
+    "assertion": "Beleg ER901435 vom 17.06.2025 aktiviert 480.000,00 EUR (netto) auf Konto 040000-000197; Bruttoverbindlichkeit 571.200,00 EUR bei Kreditor 200003.",
+    "value": {
+     "kind": "amount",
+     "value": 480000.0,
+     "currency_or_unit": "EUR",
+     "formula": "571200.00 / 1.19",
+     "formula_version": "fixture-v1",
+     "input_set_hash": "c420fb5f5cf4",
+     "operand_refs": [
+      "faa6fbb360533110",
+      "fb207f44b4ba31c6"
+     ]
+    },
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "faa6fbb360533110",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20214
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "480.000,00"
+     },
+     {
+      "kind": "cell",
+      "source_id": "fb207f44b4ba31c6",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20216
+      ],
+      "col": "BUCHUNGSBETRAG",
+      "cell_value": "-571.200,00"
+     }
+    ],
+    "verdict": "supported"
+   },
+   {
+    "claim_id": "F-0005-C2",
+    "role": "core",
+    "type": "existence",
+    "assertion": "Der im Buchungstext referenzierte 'Investitionsantrag IA-2025-04' liegt als genehmigendes Dokument im Dossier vor.",
+    "value": null,
+    "citations": [
+     {
+      "kind": "cell",
+      "source_id": "4be2f3537c1a7f2b",
+      "file": "Sachkonten/Sachkontobuchungen.txt",
+      "row_ids": [
+       20215
+      ],
+      "col": "BUCHUNGSTEXT",
+      "cell_value": "Investition Produktionslinie lt. Investitionsantrag IA-2025-04"
+     },
+     {
+      "kind": "passage",
+      "source_id": "a5f404cb4fcf2854",
+      "file": "Begleitdokumente/Exportprotokoll_GDPdU_2025.pdf",
+      "page_index": 0,
+      "page_label": "1",
+      "quote": "Muster Verpackungen GmbH – Exportprotokoll Datenträgerüberlassung",
+      "locator_precision": "quote_rect"
+     }
+    ],
+    "verdict": "unverifiable"
+   }
+  ],
+  "expected_evidence": [
+   "Investitionsantrag IA-2025-04 mit Genehmigungsvermerk"
+  ],
+  "missing_evidence": [
+   {
+    "item": "Investitionsantrag IA-2025-04",
+    "status": "not_provided",
+    "note": "Referenziert im Buchungstext; nicht Teil der Datenträgerüberlassung (siehe Dateiliste im Exportprotokoll)."
+   }
+  ],
+  "pbc_requests": [
+   "Investitionsantrag IA-2025-04 inkl. Genehmigungskette",
+   "Abnahmeprotokoll / Inbetriebnahmenachweis der Produktionslinie"
+  ],
+  "counterevidence": [],
+  "innocence_checked": [
+   {
+    "predicate": "Genehmigungsdokument auffindbar?",
+    "checked": true,
+    "result": "IA-2025-04 in keinem Dossier-Dokument enthalten; Kernaussage unverifiable — Vorgang in Quarantäne, keine Wertung.",
+    "outcome": "inconclusive"
+   }
+  ],
+  "parser_coverage": "complete",
+  "denominators": {
+   "population_size": 61,
+   "rule_hits": 1,
+   "peers_with_expected_evidence": 55,
+   "defender_rejected_hits": 0
+  },
+  "disposition": "quarantine",
+  "llm_used": false
+ }
+]

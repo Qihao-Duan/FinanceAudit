@@ -1,0 +1,271 @@
+[
+  {
+    "finding_id": "F-FX-0001",
+    "scheme": "fictitious_vendor",
+    "mechanism": "Vendor master control layer: account created and approved by the same user, followed by rapid invoice-and-payment cycles with an unresolvable contract reference.",
+    "anomaly_type": "rule_based",
+    "reporting_status": "finding",
+    "claims": [
+      {
+        "claim_id": "C-FX-0001-1",
+        "role": "core",
+        "type": "entity_attribute",
+        "assertion": "Vendor account 209101 (Ratio Consulting) was created and approved by the same user MV-U05 on 12.05.2025.",
+        "value": {"kind": "date", "value": "2025-05-12", "currency_or_unit": null, "formula": null, "formula_version": null, "input_set_hash": null, "operand_refs": []},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-md-0007", "file": "Begleitdokumente/Stammdatenaenderungen_2025.csv", "row_ids": [7], "col": "GEAENDERT_VON", "cell_value": "MV-U05"},
+          {"kind": "cell", "source_id": "fx-perm-0005", "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx", "row_ids": [5], "col": "can_create_vendor", "cell_value": "Ja"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0001-2",
+        "role": "core",
+        "type": "numerical",
+        "assertion": "The five consulting invoices from vendor 209101 in FY2025 sum to a net amount of 248,000.00 EUR (gross 295,120.00 EUR).",
+        "value": {"kind": "amount", "value": 248000.0, "currency_or_unit": "EUR", "formula": "sum(net_i for i in ER_209101_invoices)", "formula_version": "v1", "input_set_hash": "fx-hash-f1", "operand_refs": ["fx-gl-1001", "fx-gl-1002", "fx-gl-1003", "fx-gl-1004", "fx-gl-1005"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1001", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9001], "col": "BUCHUNGSBETRAG", "cell_value": "49600,00"},
+          {"kind": "cell", "source_id": "fx-gl-1002", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9014], "col": "BUCHUNGSBETRAG", "cell_value": "49600,00"},
+          {"kind": "cell", "source_id": "fx-gl-1003", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9027], "col": "BUCHUNGSBETRAG", "cell_value": "49600,00"},
+          {"kind": "cell", "source_id": "fx-gl-1004", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9040], "col": "BUCHUNGSBETRAG", "cell_value": "49600,00"},
+          {"kind": "cell", "source_id": "fx-gl-1005", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9053], "col": "BUCHUNGSBETRAG", "cell_value": "49600,00"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0001-3",
+        "role": "supporting",
+        "type": "temporal",
+        "assertion": "Each of the five invoices of vendor 209101 was paid within 2 days of the invoice posting date.",
+        "value": {"kind": "count", "value": 2, "currency_or_unit": "days_max", "formula": "max(payment_date_i - invoice_date_i)", "formula_version": "v1", "input_set_hash": "fx-hash-f1b", "operand_refs": ["fx-vt-1101"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-vt-1101", "file": "Kreditoren/Lieferantenbuchungen.txt", "row_ids": [1810], "col": "BUCHUNGSDATUM", "cell_value": "20.06.2025"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0001-4",
+        "role": "supporting",
+        "type": "absence",
+        "assertion": "The posting texts of vendor 209101 cite a 'Rahmenvertrag' for which no document is found within the provided and parsed material.",
+        "value": {"kind": "count", "value": 0, "currency_or_unit": "documents", "formula": "count(dossier documents matching 'Rahmenvertrag' reference)", "formula_version": "v1", "input_set_hash": "fx-hash-f1c", "operand_refs": ["fx-gl-1001"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1001", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [9001], "col": "BUCHUNGSTEXT", "cell_value": "Beratung lt. Rahmenvertrag"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["framework contract (Rahmenvertrag)", "service acceptance record", "independent approval of vendor creation"],
+    "missing_evidence": ["framework contract not present in provided material", "no independent approval of vendor creation"],
+    "pbc_requests": ["Request the Rahmenvertrag cited in the posting texts of vendor 209101", "Request service-acceptance documentation for the five consulting invoices"],
+    "counterevidence": [],
+    "innocence_checked": ["goods/service receipt exists: none found in scope (Wareneingangsliste covers material/logistics only)", "contract reference resolvable: not resolvable", "independent approval: none found", "vendor has prior normal history: none, account created 12.05.2025"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 143, "rule_hits": 1, "peers_with_expected_evidence": 118, "defender_rejected_hits": 0},
+    "disposition": "report"
+  },
+  {
+    "finding_id": "F-FX-0002",
+    "scheme": "expense_capitalization",
+    "mechanism": "Asset ledger layer: repair-described expenditures recorded as asset additions instead of period expense.",
+    "anomaly_type": "contextual",
+    "reporting_status": "finding",
+    "claims": [
+      {
+        "claim_id": "C-FX-0002-1",
+        "role": "core",
+        "type": "numerical",
+        "assertion": "Six asset capitalizations whose descriptions use repair language (invoices ER901421 to ER901426) sum to a net amount of 150,800.00 EUR; gross equals net times 1.19.",
+        "value": {"kind": "amount", "value": 150800.0, "currency_or_unit": "EUR", "formula": "sum(net_i for i in [ER901421..ER901426])", "formula_version": "v1", "input_set_hash": "fx-hash-f2", "operand_refs": ["fx-av-1601", "fx-gl-1602"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-av-1601", "file": "AV/Anlagenbuchungen.txt", "row_ids": [31], "col": "BUCHUNGSBETRAG", "cell_value": "27400,00"},
+          {"kind": "cell", "source_id": "fx-gl-1602", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [12240], "col": "BUCHUNGSTEXT", "cell_value": "Reparatur Verpackungslinie ER901424"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0002-2",
+        "role": "supporting",
+        "type": "absence",
+        "assertion": "No technical assessment supporting capitalization of the six repair-described items is found within the provided and parsed material.",
+        "value": {"kind": "count", "value": 0, "currency_or_unit": "documents", "formula": "count(technical assessments linked to ER901421..ER901426)", "formula_version": "v1", "input_set_hash": "fx-hash-f2b", "operand_refs": ["fx-av-1601"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-av-1601", "file": "AV/Anlagenbuchungen.txt", "row_ids": [31], "col": "TEXT", "cell_value": "Reparatur Maschine 4"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["technical assessment distinguishing component replacement from repair", "asset cards with depreciation start"],
+    "missing_evidence": ["technical assessment not present in provided material"],
+    "pbc_requests": ["Request technical assessments for invoices ER901421-ER901426"],
+    "counterevidence": [],
+    "innocence_checked": ["capitalizable component replacement documented: no documentation found", "depreciation started normally: asset cards exist, depreciation start recorded"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 56, "rule_hits": 6, "peers_with_expected_evidence": 44, "defender_rejected_hits": 0},
+    "disposition": "report"
+  },
+  {
+    "finding_id": "F-FX-0003",
+    "scheme": "cutoff",
+    "mechanism": "Accrual layer: December-2025 service dates invoiced in January 2026; recorded accrual does not cover the invoiced amounts.",
+    "anomaly_type": "rule_based",
+    "reporting_status": "finding",
+    "claims": [
+      {
+        "claim_id": "C-FX-0003-1",
+        "role": "core",
+        "type": "numerical",
+        "assertion": "Eight vendor invoices dated January 2026 (vendors 209130-209137) with service dates in December 2025 sum to 192,000.00 EUR and match eight goods receipts marked 'Dez-Lieferung, Rechnung offen'.",
+        "value": {"kind": "amount", "value": 192000.0, "currency_or_unit": "EUR", "formula": "sum(amount_i for i in Jan2026_invoices_with_Dec2025_service_date)", "formula_version": "v1", "input_set_hash": "fx-hash-f3", "operand_refs": ["fx-pi-1301", "fx-pi-1308", "fx-we-1401"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-pi-1301", "file": "Begleitdokumente/Fakturajournal_Januar_2026_Kreditoren.csv", "row_ids": [2], "col": "BETRAG", "cell_value": "24000,00"},
+          {"kind": "cell", "source_id": "fx-pi-1308", "file": "Begleitdokumente/Fakturajournal_Januar_2026_Kreditoren.csv", "row_ids": [9], "col": "LEISTUNGSDATUM", "cell_value": "18.12.2025"},
+          {"kind": "cell", "source_id": "fx-we-1401", "file": "Begleitdokumente/Wareneingangsliste_2025.csv", "row_ids": [851], "col": "BEMERKUNG", "cell_value": "Dez-Lieferung, Rechnung offen"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0003-2",
+        "role": "core",
+        "type": "numerical",
+        "assertion": "An accrual of 86,500.00 EUR 'unfakturierte Leistungen' exists at 31.12.2025; no subset of the eight invoices sums to this amount.",
+        "value": {"kind": "amount", "value": 86500.0, "currency_or_unit": "EUR", "formula": "accrual_balance('unfakturierte Leistungen')", "formula_version": "v1", "input_set_hash": "fx-hash-f3b", "operand_refs": ["fx-gl-1501"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1501", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [19870], "col": "BUCHUNGSBETRAG", "cell_value": "-86500,00"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0003-3",
+        "role": "core",
+        "type": "computational",
+        "assertion": "Potential unmatched liability of between 105,500.00 EUR and 192,000.00 EUR at 31.12.2025, depending on the undetermined relation of the 86,500.00 EUR accrual to the eight invoices; the profit-and-loss effect requires item-by-item confirmation and is not asserted here.",
+        "value": {"kind": "amount", "value": 105500.0, "currency_or_unit": "EUR", "formula": "192000.00 - 86500.00 (lower bound; upper bound 192000.00 if accrual unrelated)", "formula_version": "v1", "input_set_hash": "fx-hash-f3c", "operand_refs": ["C-FX-0003-1", "C-FX-0003-2"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-pi-1301", "file": "Begleitdokumente/Fakturajournal_Januar_2026_Kreditoren.csv", "row_ids": [2], "col": "BETRAG", "cell_value": "24000,00"},
+          {"kind": "cell", "source_id": "fx-gl-1501", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [19870], "col": "BUCHUNGSBETRAG", "cell_value": "-86500,00"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["per-invoice accrual linkage or documented estimation basis"],
+    "missing_evidence": ["accrual coverage of the eight December service invoices not demonstrable from provided material"],
+    "pbc_requests": ["Request the calculation basis of the 86,500.00 EUR accrual 'unfakturierte Leistungen'"],
+    "counterevidence": [],
+    "innocence_checked": ["matching accrual exists per invoice: no per-invoice linkage found", "accrual is a documented estimate covering the deliveries: no basis found in scope", "service period actually in 2026: contradicted by Leistungsdatum fields"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 8, "rule_hits": 8, "peers_with_expected_evidence": 0, "defender_rejected_hits": 0},
+    "disposition": "report"
+  },
+  {
+    "finding_id": "F-FX-0004",
+    "scheme": "threshold_splitting",
+    "mechanism": "Payment control layer: one collective document split into four same-day partial payments each below the dual-approval limit.",
+    "anomaly_type": "rule_based",
+    "reporting_status": "finding",
+    "claims": [
+      {
+        "claim_id": "C-FX-0004-1",
+        "role": "core",
+        "type": "numerical",
+        "assertion": "Four payments of 9,780.00, 9,820.00, 9,750.00 and 9,690.00 EUR to vendor 200007 on 14.10.2025 under document SAMMEL-200007 sum to 39,040.00 EUR.",
+        "value": {"kind": "amount", "value": 39040.0, "currency_or_unit": "EUR", "formula": "9780.00 + 9820.00 + 9750.00 + 9690.00", "formula_version": "v1", "input_set_hash": "fx-hash-f4", "operand_refs": ["fx-gl-1201", "fx-gl-1202", "fx-gl-1203", "fx-gl-1204"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1201", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [15102], "col": "BUCHUNGSBETRAG", "cell_value": "9780,00"},
+          {"kind": "cell", "source_id": "fx-gl-1202", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [15104], "col": "BUCHUNGSBETRAG", "cell_value": "9820,00"},
+          {"kind": "cell", "source_id": "fx-gl-1203", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [15106], "col": "BUCHUNGSBETRAG", "cell_value": "9750,00"},
+          {"kind": "cell", "source_id": "fx-gl-1204", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [15108], "col": "BUCHUNGSBETRAG", "cell_value": "9690,00"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0004-2",
+        "role": "core",
+        "type": "comparative",
+        "assertion": "Each of the four payments is below the 10,000.00 EUR dual-approval limit defined in the audit planning document, while their same-document total exceeds it.",
+        "value": {"kind": "amount", "value": 10000.0, "currency_or_unit": "EUR", "formula": "limit from Pruefungsplanung; max(single payment) < limit < sum", "formula_version": "v1", "input_set_hash": "fx-hash-f4b", "operand_refs": ["fx-doc-pp01", "C-FX-0004-1"]},
+        "citations": [
+          {"kind": "passage", "source_id": "fx-doc-pp01", "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx", "page_index": 0, "page_label": "1", "quote": "Zahlungen ab 10.000 EUR erfordern eine zweite Freigabe", "locator_precision": "quote_rect"}
+        ],
+        "verdict": "supported"
+      },
+      {
+        "claim_id": "C-FX-0004-3",
+        "role": "supporting",
+        "type": "entity_attribute",
+        "assertion": "All four payments carry posting text 'Teilzahlung Lieferantenrechnung' and user MV-U11, indicating a single underlying payable.",
+        "value": {"kind": "count", "value": 4, "currency_or_unit": "payments", "formula": "count(payments with doc SAMMEL-200007)", "formula_version": "v1", "input_set_hash": "fx-hash-f4c", "operand_refs": ["fx-gl-1201"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1201", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [15102], "col": "BUCHUNGSTEXT", "cell_value": "Teilzahlung Lieferantenrechnung"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["batch payment authorization", "installment contract terms", "original debt document"],
+    "missing_evidence": ["no batch authorization or installment agreement found in provided material"],
+    "pbc_requests": ["Request the original payable behind document SAMMEL-200007 and any batch payment authorization"],
+    "counterevidence": [],
+    "innocence_checked": ["legitimate batch payment authorization exists: none found", "installment contract terms exist: none found", "payments relate to distinct debts: contradicted by shared SAMMEL-200007 document"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 5582, "rule_hits": 4, "peers_with_expected_evidence": 0, "defender_rejected_hits": 0},
+    "disposition": "report"
+  },
+  {
+    "finding_id": "F-FX-0005",
+    "scheme": "related_party",
+    "mechanism": "Master-data layer: the same personal account is attributed to two different group entities in two documents.",
+    "anomaly_type": "contextual",
+    "reporting_status": "observation",
+    "claims": [
+      {
+        "claim_id": "C-FX-0005-1",
+        "role": "core",
+        "type": "entity_attribute",
+        "assertion": "Vendor account 209113 is assigned to Muster Verpackung Austria GmbH (sister company) in line 6 of the shareholder list but to Muster Beteiligungs GmbH (parent) in the vendor master data; the two documents conflict and the Konzernumlage of 220,000.00 EUR was posted through this account.",
+        "value": {"kind": "amount", "value": 220000.0, "currency_or_unit": "EUR", "formula": "sum(Konzernumlage postings on 209113)", "formula_version": "v1", "input_set_hash": "fx-hash-d5", "operand_refs": ["fx-gsl-0006", "fx-krm-0113"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gsl-0006", "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv", "row_ids": [6], "col": "note", "cell_value": "Personenkonto Kreditor 209113"},
+          {"kind": "cell", "source_id": "fx-krm-0113", "file": "Kreditoren/Lieferanten.txt", "row_ids": [114], "col": "NAME", "cell_value": "Muster Beteiligungs GmbH"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["intercompany agreement", "allocation basis", "consistent disclosure of the counterparty entity"],
+    "missing_evidence": ["entity attribution of account 209113 inconsistent between documents"],
+    "pbc_requests": ["Request clarification which group entity owns account 209113 and the Konzernumlage agreement"],
+    "counterevidence": [],
+    "innocence_checked": ["agreement, allocation basis and disclosure consistent: disclosure inconsistent across documents"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 6, "rule_hits": 1, "peers_with_expected_evidence": 5, "defender_rejected_hits": 0},
+    "disposition": "observation"
+  },
+  {
+    "finding_id": "F-FX-0006",
+    "scheme": "controls_breach",
+    "mechanism": "Documentation layer: a referenced investment application is not present in the provided material.",
+    "anomaly_type": "rule_based",
+    "reporting_status": "observation",
+    "claims": [
+      {
+        "claim_id": "C-FX-0006-1",
+        "role": "core",
+        "type": "absence",
+        "assertion": "The 480,000.00 EUR machine acquisition references Investitionsantrag IA-2025-04, which is not found within the provided and parsed material; the acquisition itself is otherwise regularly recorded.",
+        "value": {"kind": "count", "value": 0, "currency_or_unit": "documents", "formula": "count(dossier documents matching 'IA-2025-04')", "formula_version": "v1", "input_set_hash": "fx-hash-d1", "operand_refs": ["fx-gl-1701"]},
+        "citations": [
+          {"kind": "cell", "source_id": "fx-gl-1701", "file": "Sachkonten/Sachkontobuchungen.txt", "row_ids": [8120], "col": "BUCHUNGSTEXT", "cell_value": "Maschinenzugang lt. Investitionsantrag IA-2025-04"}
+        ],
+        "verdict": "supported"
+      }
+    ],
+    "expected_evidence": ["investment application IA-2025-04"],
+    "missing_evidence": ["IA-2025-04 not present in provided material"],
+    "pbc_requests": ["Request Investitionsantrag IA-2025-04"],
+    "counterevidence": ["acquisition posting is balanced, asset card exists, depreciation started"],
+    "innocence_checked": ["investment application exists elsewhere in dossier: not found", "acquisition otherwise documented: asset card and depreciation consistent"],
+    "parser_coverage": "complete",
+    "denominators": {"population_size": 56, "rule_hits": 1, "peers_with_expected_evidence": 51, "defender_rejected_hits": 0},
+    "disposition": "observation"
+  }
+]

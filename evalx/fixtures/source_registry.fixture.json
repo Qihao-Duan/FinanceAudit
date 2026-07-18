@@ -1,0 +1,30 @@
+{
+  "_comment": "Synthetic registry fixture mirroring build/audit.duckdb tables source_registry + doc_units (CONTRACTS §2). Used by evalx.run --fixtures; same code path as the duckdb backend.",
+  "source_registry": [
+    {"source_id": "fx-md-0007", "file": "Begleitdokumente/Stammdatenaenderungen_2025.csv", "kind": "cell_row", "row_no": 7, "display_locator": "Stammdatenaenderungen_2025.csv:7"},
+    {"source_id": "fx-perm-0005", "file": "Begleitdokumente/Berechtigungsauswertung_2025.xlsx", "kind": "cell_row", "row_no": 5, "display_locator": "Berechtigungsauswertung_2025.xlsx:5"},
+    {"source_id": "fx-gl-1001", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 9001, "display_locator": "Sachkontobuchungen.txt:9001"},
+    {"source_id": "fx-gl-1002", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 9014, "display_locator": "Sachkontobuchungen.txt:9014"},
+    {"source_id": "fx-gl-1003", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 9027, "display_locator": "Sachkontobuchungen.txt:9027"},
+    {"source_id": "fx-gl-1004", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 9040, "display_locator": "Sachkontobuchungen.txt:9040"},
+    {"source_id": "fx-gl-1005", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 9053, "display_locator": "Sachkontobuchungen.txt:9053"},
+    {"source_id": "fx-vt-1101", "file": "Kreditoren/Lieferantenbuchungen.txt", "kind": "cell_row", "row_no": 1810, "display_locator": "Lieferantenbuchungen.txt:1810"},
+    {"source_id": "fx-gl-1201", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 15102, "display_locator": "Sachkontobuchungen.txt:15102"},
+    {"source_id": "fx-gl-1202", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 15104, "display_locator": "Sachkontobuchungen.txt:15104"},
+    {"source_id": "fx-gl-1203", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 15106, "display_locator": "Sachkontobuchungen.txt:15106"},
+    {"source_id": "fx-gl-1204", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 15108, "display_locator": "Sachkontobuchungen.txt:15108"},
+    {"source_id": "fx-doc-pp01", "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx", "kind": "para", "page_index": 0, "page_label": "1", "para_no": 12, "display_locator": "Pruefungsplanung_JET_2025.docx:p1:para12"},
+    {"source_id": "fx-pi-1301", "file": "Begleitdokumente/Fakturajournal_Januar_2026_Kreditoren.csv", "kind": "cell_row", "row_no": 2, "display_locator": "Fakturajournal_Januar_2026_Kreditoren.csv:2"},
+    {"source_id": "fx-pi-1308", "file": "Begleitdokumente/Fakturajournal_Januar_2026_Kreditoren.csv", "kind": "cell_row", "row_no": 9, "display_locator": "Fakturajournal_Januar_2026_Kreditoren.csv:9"},
+    {"source_id": "fx-we-1401", "file": "Begleitdokumente/Wareneingangsliste_2025.csv", "kind": "cell_row", "row_no": 851, "display_locator": "Wareneingangsliste_2025.csv:851"},
+    {"source_id": "fx-gl-1501", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 19870, "display_locator": "Sachkontobuchungen.txt:19870"},
+    {"source_id": "fx-av-1601", "file": "AV/Anlagenbuchungen.txt", "kind": "cell_row", "row_no": 31, "display_locator": "Anlagenbuchungen.txt:31"},
+    {"source_id": "fx-gl-1602", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 12240, "display_locator": "Sachkontobuchungen.txt:12240"},
+    {"source_id": "fx-gsl-0006", "file": "Begleitdokumente/Gesellschafterliste_Beteiligungen.csv", "kind": "cell_row", "row_no": 6, "display_locator": "Gesellschafterliste_Beteiligungen.csv:6"},
+    {"source_id": "fx-krm-0113", "file": "Kreditoren/Lieferanten.txt", "kind": "cell_row", "row_no": 114, "display_locator": "Lieferanten.txt:114"},
+    {"source_id": "fx-gl-1701", "file": "Sachkonten/Sachkontobuchungen.txt", "kind": "cell_row", "row_no": 8120, "display_locator": "Sachkontobuchungen.txt:8120"}
+  ],
+  "doc_units": [
+    {"source_id": "fx-doc-pp01", "file": "Begleitdokumente/Pruefungsplanung_JET_2025.docx", "page_index": 0, "page_label": "1", "unit_type": "para", "text": "Zahlungen ab 10.000 EUR erfordern eine zweite Freigabe (Vier-Augen-Prinzip). Wesentlichkeit gesamt: 400.000 EUR; Ausführungswesentlichkeit: 300.000 EUR; JET-Auswahlparameter: 25.000 EUR."}
+  ]
+}

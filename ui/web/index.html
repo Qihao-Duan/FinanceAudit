@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<title>FinanceAudit — Prüfungsassistent</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">FinanceAudit</span>
+    <span class="brand-sub">Muster Verpackungen GmbH · GJ 2025 · GDPdU-Datenträgerüberlassung</span>
+  </div>
+  <div class="topstats" id="topstats">
+    <span class="stat" id="stat-mode" title="Datenquelle">–</span>
+    <span class="stat" id="stat-coverage" title="Parse-Abdeckung über alle Quelldateien">Abdeckung –</span>
+    <span class="stat" id="stat-balance" title="Summe BUCHUNGSBETRAG Hauptbuch">HB Soll=Haben –</span>
+    <span class="stat" id="stat-quarantine" title="Vorgänge ohne verifizierbare Kernaussage">Quarantäne –</span>
+  </div>
+</header>
+
+<main class="layout">
+  <nav class="pane pane-left" id="pane-findings" aria-label="Feststellungen">
+    <div id="findings-list"></div>
+    <section class="pbc-block" id="pbc-block"></section>
+    <footer class="pane-footer">
+      <span id="llm-note">llm_used: false · deterministische Pipeline</span>
+    </footer>
+  </nav>
+
+  <section class="pane pane-center" id="pane-evidence" aria-label="Evidenzkarte">
+    <div id="evidence-card" class="empty-state">Feststellung auswählen …</div>
+  </section>
+
+  <aside class="pane pane-right" id="pane-source" aria-label="Quellenansicht">
+    <div class="src-caption" id="src-caption">Quellenansicht — Zitat in der Evidenzkarte anklicken</div>
+    <div class="src-body" id="src-body">
+      <div class="empty-state">Jedes Zitat lädt hier die Originalquelle:<br>
+      Tabellenzeilen als Ausschnitt mit Hervorhebung,<br>
+      PDF-Seiten als Bild mit markierter Fundstelle.</div>
+    </div>
+  </aside>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
