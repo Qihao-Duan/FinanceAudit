@@ -1,0 +1,11 @@
+data/
+build/
+.env
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+*.duckdb
+model_outputs/
+.DS_Store
