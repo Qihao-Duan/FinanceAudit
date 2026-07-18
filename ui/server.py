@@ -363,8 +363,8 @@ def api_manifest():
             "requests": f.get("pbc_requests", [])}
            for f in findings if f.get("pbc_requests")]
     files = man.get("files", [])
-    exp = sum(x.get("expected_units", 0) for x in files)
-    got = sum(x.get("parsed_units", 0) for x in files)
+    exp = sum((x.get("expected_units") or 0) for x in files)
+    got = sum((x.get("parsed_units") or 0) for x in files)
 
     # Flagged amount total = sum of report-tier finding amounts.
     flagged_total = sum(
