@@ -54,6 +54,16 @@ CONTRACT_TABLES = [
 
 app = FastAPI(title="FinanceAudit UI", docs_url=None, redoc_url=None)
 
+
+@app.middleware("http")
+async def _no_cache_static(request, call_next):
+    """Dev/demo-friendly: ES modules otherwise stick in the browser cache and
+    UI edits appear to have no effect until a hard reload."""
+    resp = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
 # --------------------------------------------------------------------------
 # data access
 # --------------------------------------------------------------------------

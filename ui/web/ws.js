@@ -42,6 +42,13 @@ async function init() {
 
   const right = document.querySelector(".topbar-right");
   if (right) right.insertBefore(sel, right.firstChild);
+
+  // app.js rewrites the brand subtitle on locale toggle — restore the
+  // active company label afterwards.
+  document.addEventListener("click", (ev) => {
+    if (ev.target.closest("#lang-toggle button") && sub && cur.company)
+      setTimeout(() => { sub.textContent = `${cur.company} · ${cur.dossier}`; }, 0);
+  });
 }
 
 init();

@@ -97,8 +97,8 @@ function renderTopbar() {
     b.style.display = "none";
   }
 
-  $("lang-en").classList.toggle("active", getLocale() === "en");
-  $("lang-de").classList.toggle("active", getLocale() === "de");
+  document.querySelectorAll("#lang-toggle button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.loc === getLocale()));
 }
 
 function renderExec() {

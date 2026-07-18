@@ -23,6 +23,15 @@ const L = {
           "ihre source_id zur Originaldatei.",
     findings: "Feststellungen", data: "Daten",
   },
+  zh: {
+    tables: "数据表", search: "在表内搜索…", rows: "行",
+    showing: (a, b, t) => `${a}–${b} / 共 ${num(t)}`,
+    prev: "上一页", next: "下一页", profile: "列语义",
+    constant: "常量", conflict: "冲突",
+    hint: "在左侧选择一张数据表。这是管线从卷宗构建的类型化数据层" +
+          "（已应用语义别名）；每一行都保留指回原始文件的 source_id。",
+    findings: "发现", data: "数据",
+  },
 };
 const t = (k) => (L[getLocale()] || L.en)[k];
 

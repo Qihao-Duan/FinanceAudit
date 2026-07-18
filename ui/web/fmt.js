@@ -5,7 +5,7 @@
 
 // ------------------------------------------------------------------ locale --
 const LOCALE_KEY = "fa.locale";
-const LOCALES = ["en", "de"];
+const LOCALES = ["en", "de", "zh"];
 let _locale = null;
 
 export function getLocale() {
@@ -31,7 +31,7 @@ const STR = {
   en: {
     brand_sub: "Muster Verpackungen GmbH · FY 2025 · GDPdU data-carrier disclosure",
     mode_build: "Pipeline data (build/)",
-    mode_fixtures: "Fixture mode (pipeline artefacts missing)",
+    mode_fixtures: "Demo data (no pipeline build found)",
     mode_error: "Status error: {msg}",
     coverage: "Parse coverage {pct} · {done}/{total} files",
     gl_balance: "GL debit = credit, Δ {diff}",
@@ -74,7 +74,7 @@ const STR = {
     defense_no_counter: "no counterevidence found",
     defense_counter_n: "{n} counterevidence item(s)",
     defense_line: "{checks} innocence checks · {counter}",
-    defense_note: "Absence of exculpation is not inculpatory evidence.",
+    defense_note: "Finding no exculpatory evidence is not itself evidence of guilt.",
     defense_show: "Show defense log",
     defense_no_log: "No innocence checks recorded.",
     card_evidence_status: "Evidence status / PBC",
@@ -109,7 +109,7 @@ const STR = {
   de: {
     brand_sub: "Muster Verpackungen GmbH · GJ 2025 · GDPdU-Datenträgerüberlassung",
     mode_build: "Pipeline-Daten (build/)",
-    mode_fixtures: "Fixture-Modus (Pipeline-Artefakte fehlen)",
+    mode_fixtures: "Demodaten (kein Pipeline-Build gefunden)",
     mode_error: "Status-Fehler: {msg}",
     coverage: "Parse-Abdeckung {pct} · {done}/{total} Dateien",
     gl_balance: "HB Soll = Haben, Δ {diff}",
@@ -180,6 +180,80 @@ const STR = {
     src_error_caption: "Fehler",
     src_error_body: "Quelle nicht ladbar: {msg}",
   },
+  zh: {
+    brand_sub: "Muster Verpackungen GmbH · 2025 财年 · GDPdU 数据载体移交",
+    mode_build: "管线数据 (build/)",
+    mode_fixtures: "演示数据（未找到管线构建）",
+    mode_error: "状态错误：{msg}",
+    coverage: "解析覆盖 {pct} · {done}/{total} 个文件",
+    gl_balance: "总账借贷平衡，差额 {diff}",
+    lang_label: "语言",
+
+    exec_key_findings: "关键发现",
+    exec_flagged: "涉及金额",
+    exec_observations: "观察项",
+    exec_citations: "引用可溯源",
+    exec_quarantine: "隔离区",
+
+    section_key_findings: "关键发现",
+    section_observations: "观察项",
+    section_quarantine: "隔离区",
+    section_rejected: "已驳回",
+    list_core: "核心断言 {s}/{t} 已证实",
+    pbc_title: "待客户补充资料 · PBC（{n}）",
+    findings_error: "发现列表加载失败：{msg}",
+    footer_llm: "llm_used: false · 确定性管线",
+
+    card_pick: "请选择一条发现…",
+    cite_rows: "第 {v} 行",
+    cite_page: "第 {v} 页",
+    card_amount_note: "金额经系统重算核实",
+    card_summary: "摘要",
+    llm_tag: "AI 起草的叙述（事实已锁定并经过滤）",
+    llm_next_steps: "建议的后续步骤（AI 起草）",
+    card_key_evidence: "核心证据",
+    card_supporting_show: "展开 {n} 条辅助断言",
+    card_supporting_hide: "收起辅助断言",
+    card_verification: "重算验证",
+    card_verification_none: "本条发现没有可重算的公式。",
+    card_ui_recompute: "界面复核",
+    card_recompute_ok: "一致",
+    card_recompute_bad: "不一致",
+    card_defense: "反证核查",
+    defense_no_counter: "未发现反证",
+    defense_counter_n: "发现 {n} 项反证",
+    defense_line: "已做 {checks} 项无罪核查 · {counter}",
+    defense_note: "未找到开脱证据，本身并不构成有罪证据。",
+    defense_show: "查看核查记录",
+    defense_no_log: "没有无罪核查记录。",
+    card_evidence_status: "证据状态 / PBC",
+    card_pbc: "待客户补充（PBC）",
+    card_evidence_none: "没有待补证据。",
+    legend: "图例",
+    card_details: "详情",
+    meta_scheme: "类型",
+    meta_mechanism: "机制",
+    meta_anomaly: "异常类别",
+    meta_status: "状态",
+    meta_parser: "解析",
+    meta_entity: "主体",
+    meta_finding: "发现编号",
+    meta_denominators: "统计基数",
+    dn_population_size: "总体规模",
+    dn_rule_hits: "规则命中",
+    dn_peers_with_expected_evidence: "有同类证据的对照",
+    dn_defender_rejected_hits: "经反证排除",
+
+    src_hint_caption: "原文视图 — 点击证据卡中的任意引用",
+    src_hint_body: "每条引用都会在这里打开原始单据：表格行以摘录显示并高亮所引行，PDF 页面以图片显示并标出所引段落。",
+    src_loading: "正在加载原文…",
+    src_precision: "定位精度：{precision}",
+    src_marked: "已高亮",
+    src_unmarked: "整页（无高亮）",
+    src_page: "第 {p} 页",
+    src_error_caption: "错误",
+    src_error_body: "原文无法加载：{msg}",
+  },
 };
 
 export function t(key) {
@@ -199,14 +273,17 @@ const LABELS = {
   disposition: {
     en: { report: "Reported", observation: "Observation", quarantine: "Quarantine", rejected: "Rejected" },
     de: { report: "Bericht", observation: "Beobachtung", quarantine: "Quarantäne", rejected: "Verworfen" },
+    zh: { report: "正式发现", observation: "观察项", quarantine: "隔离", rejected: "已驳回" },
   },
   verdict: {
     en: { supported: "Supported", contradicted: "Contradicted", unverifiable: "Unverifiable" },
     de: { supported: "Belegt", contradicted: "Widerlegt", unverifiable: "Nicht verifizierbar" },
+    zh: { supported: "已证实", contradicted: "被反驳", unverifiable: "无法核实" },
   },
   role: {
     en: { core: "Core", supporting: "Supporting" },
     de: { core: "Kern", supporting: "Stützend" },
+    zh: { core: "核心", supporting: "辅助" },
   },
   // three-state evidence status (per task): not provided / parse failure / mismatched
   evstate: {
@@ -219,6 +296,11 @@ const LABELS = {
       not_provided_in_materials: "nicht in den Unterlagen",
       parse_failure: "Parse-Fehler",
       provided_but_mismatched: "vorhanden, aber abweichend",
+    },
+    zh: {
+      not_provided_in_materials: "材料中未提供",
+      parse_failure: "解析失败",
+      provided_but_mismatched: "已提供但不匹配",
     },
   },
   scheme: {
@@ -245,6 +327,18 @@ const LABELS = {
       estimate_manipulation: "Schätzungsänderung",
       round_amounts: "Runde Beträge",
       reconciliation: "Abstimmung",
+    },
+    zh: {
+      fictitious_vendor: "供应商控制环境",
+      threshold_splitting: "拆分付款",
+      expense_capitalization: "费用资本化",
+      cutoff: "期间截止",
+      related_party: "关联方",
+      controls_breach: "控制缺陷",
+      revenue_timing: "收入确认时点",
+      estimate_manipulation: "会计估计变更",
+      round_amounts: "整数金额",
+      reconciliation: "勾稽核对",
     },
   },
 };
@@ -274,7 +368,7 @@ export function eur(v, opts = {}) {
   const { whole = false, dashZero = true } = opts;
   const n = typeof v === "number" ? v : (v == null ? null : Number(v));
   if (n == null || Number.isNaN(n) || (dashZero && n === 0)) return "—";
-  const loc = getLocale() === "de" ? "de-DE" : "en-IE";
+  const loc = { de: "de-DE", zh: "zh-CN" }[getLocale()] || "en-IE";
   return new Intl.NumberFormat(loc, {
     style: "currency",
     currency: "EUR",
@@ -287,7 +381,7 @@ export function num(v) {
   if (v == null || v === "") return "—";
   const n = Number(v);
   if (Number.isNaN(n)) return String(v);
-  return new Intl.NumberFormat(getLocale() === "de" ? "de-DE" : "en-IE").format(n);
+  return new Intl.NumberFormat({ de: "de-DE", zh: "zh-CN" }[getLocale()] || "en-IE").format(n);
 }
 
 export function pct(v) {
