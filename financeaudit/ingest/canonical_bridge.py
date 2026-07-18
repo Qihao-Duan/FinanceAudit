@@ -57,15 +57,33 @@ def _map_invoice_journal(r: dict) -> dict:
     }
 
 
+def _dec_of(r: dict, *keys):
+    """Canonical decimal shadow value (string) that property tests read via
+    r['*_dec']. Prefer an existing _dec column; else stringify the numeric."""
+    for k in keys:
+        v = r.get(k)
+        if v not in (None, ""):
+            return str(v)
+    amt = _amount(r, *keys)
+    return None if amt is None else repr(amt)
+
+
 def _map_trial_balance(r: dict) -> dict:
     return {
         "account": _first(r, "account"),
         "name": _first(r, "account_name", "name"),
         "kind": _first(r, "account_type", "kind"),
         "opening": _amount(r, "opening_balance_2025_01_01", "opening"),
+        "opening_dec": _dec_of(r, "opening_balance_2025_01_01_dec", "opening_dec",
+                               "opening_balance_2025_01_01", "opening"),
         "debit": _amount(r, "debit_2025", "debit"),
+        "debit_dec": _dec_of(r, "debit_2025_dec", "debit_dec", "debit_2025", "debit"),
         "credit": _amount(r, "credit_2025", "credit"),
+        "credit_dec": _dec_of(r, "credit_2025_dec", "credit_dec", "credit_2025", "credit"),
         "closing": _amount(r, "closing_balance_2025_12_31", "closing"),
+        "closing_dec": _dec_of(r, "closing_balance_2025_12_31_dec", "closing_dec",
+                               "closing_balance_2025_12_31", "closing"),
+        "closing_computed": False,
         "source_id": r.get("source_id"),
     }
 
@@ -84,6 +102,8 @@ def _map_vendor_open(rows: List[dict]) -> List[dict]:
         amt = _amount(r, "amount_eur", "amount")
         if amt is not None:
             a["balance"] = round(a["balance"] + amt, 2)
+    for a in agg.values():
+        a["balance_dec"] = repr(a["balance"]); a["balance_raw"] = None
     return list(agg.values())
 
 
@@ -101,6 +121,8 @@ def _map_debtor_open(rows: List[dict]) -> List[dict]:
         amt = _amount(r, "amount_eur", "amount")
         if amt is not None:
             a["balance"] = round(a["balance"] + amt, 2)
+    for a in agg.values():
+        a["balance_dec"] = repr(a["balance"]); a["balance_raw"] = None
     return list(agg.values())
 
 
@@ -184,7 +206,8 @@ def parse_extended_invoice_journal(data_dir, registry) -> List[dict]:
             "customer_name": g(r, "DEBITORNAME"),
             "invoice_date": g(r, "FAKTURADATUM"),
             "service_date": g(r, "LEISTUNGSDATUM"),
-            "amount": amt, "amount_raw": raw, "amount_dec": None,
+            "amount": amt, "amount_raw": raw,
+            "amount_dec": (repr(amt) if amt is not None else None),
             "currency": g(r, "WAEHRUNG") or "EUR",
             "note": g(r, "BEMERKUNG"),
             "goods_issue_ref": g(r, "WARENAUSGANG_NR"),
