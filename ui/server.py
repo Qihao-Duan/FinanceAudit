@@ -296,8 +296,10 @@ def api_findings():
         core = [c for c in claims if c.get("role") == "core"]
         out.append({
             "finding_id": f.get("finding_id"),
+            "rank": f.get("rank"),
             "title": f.get("title") or f.get("description", "")[:90],
             "scheme": f.get("scheme"),
+            "mechanism": f.get("mechanism"),
             "anomaly_type": f.get("anomaly_type"),
             "reporting_status": f.get("reporting_status"),
             "disposition": f.get("disposition"),
@@ -335,6 +337,20 @@ def api_manifest():
     files = man.get("files", [])
     exp = sum(x.get("expected_units", 0) for x in files)
     got = sum(x.get("parsed_units", 0) for x in files)
+
+    # Flagged amount total = sum of report-tier finding amounts.
+    flagged_total = sum(
+        a for a in (_amount_of(f) for f in findings if f.get("disposition") == "report")
+        if isinstance(a, (int, float)))
+
+    # Citation resolvability comes from the eval artefact when present.
+    cit = {}
+    try:
+        if mode() == "build" and (BUILD_DIR / "eval_report.json").exists():
+            cit = (_load_json(BUILD_DIR / "eval_report.json") or {}).get("citations") or {}
+    except Exception:
+        cit = {}
+
     man["summary"] = {
         "mode": mode(),
         "parse_coverage_pct": round(100.0 * got / exp, 1) if exp else None,
@@ -342,7 +358,15 @@ def api_manifest():
         "n_files_complete": sum(1 for x in files
                                 if x.get("parse_coverage") == "complete"),
         "dispositions": disp,
+        "report_count": disp.get("report", 0),
+        "observation_count": disp.get("observation", 0),
         "quarantine_count": disp.get("quarantine", 0),
+        "flagged_amount_total": flagged_total,
+        "citations": {
+            "resolvability_pct": cit.get("resolvability_pct"),
+            "total": cit.get("total"),
+            "resolved": cit.get("resolved"),
+        },
         "pbc_queue": pbc,
     }
     return man
@@ -398,6 +422,17 @@ def api_render(source_id: str,
     elif suffix == ".pdf" or kind in ("page", "para"):
         if not path.exists():
             raise HTTPException(404, f"source file missing: {file_rel}")
+        if quote is None and kind == "para" and mode() == "build":
+            # No explicit quote: fall back to the paragraph's own text from
+            # doc_units so para-level PDF citations still get a highlight rect.
+            try:
+                row = _duck().execute(
+                    "SELECT text FROM doc_units WHERE source_id = ?",
+                    [source_id]).fetchone()
+                if row and row[0]:
+                    quote = " ".join(str(row[0]).split()[:12])
+            except Exception:
+                pass
         result = render_pdf(path, int(rec.get("page_index") or 0), quote, precision)
     else:
         raise HTTPException(422, f"cannot render kind={kind} file={file_rel}")

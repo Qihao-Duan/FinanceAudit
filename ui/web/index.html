@@ -1,45 +1,50 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>FinanceAudit — Prüfungsassistent</title>
+<title>FinanceAudit — Audit Evidence Viewer</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
     <span class="brand-name">FinanceAudit</span>
-    <span class="brand-sub">Muster Verpackungen GmbH · GJ 2025 · GDPdU-Datenträgerüberlassung</span>
+    <span class="brand-sub" id="brand-sub">—</span>
   </div>
-  <div class="topstats" id="topstats">
-    <span class="stat" id="stat-mode" title="Datenquelle">–</span>
-    <span class="stat" id="stat-coverage" title="Parse-Abdeckung über alle Quelldateien">Abdeckung –</span>
-    <span class="stat" id="stat-balance" title="Summe BUCHUNGSBETRAG Hauptbuch">HB Soll=Haben –</span>
-    <span class="stat" id="stat-quarantine" title="Vorgänge ohne verifizierbare Kernaussage">Quarantäne –</span>
+  <div class="topbar-right">
+    <div class="topstats" id="topstats">
+      <span class="stat" id="stat-mode" title="Data source">–</span>
+      <span class="stat" id="stat-coverage" title="Parse coverage across all source files">–</span>
+      <span class="stat" id="stat-balance" title="Sum of GL posting amounts">–</span>
+    </div>
+    <div class="lang-toggle" id="lang-toggle" role="group" aria-label="Language">
+      <button type="button" data-loc="en" id="lang-en">EN</button>
+      <button type="button" data-loc="de" id="lang-de">DE</button>
+    </div>
   </div>
 </header>
 
+<section class="exec-strip" id="exec-strip" aria-label="Audit summary"></section>
+
 <main class="layout">
-  <nav class="pane pane-left" id="pane-findings" aria-label="Feststellungen">
+  <nav class="pane pane-left" id="pane-findings" aria-label="Findings">
     <div id="findings-list"></div>
     <section class="pbc-block" id="pbc-block"></section>
     <footer class="pane-footer">
-      <span id="llm-note">llm_used: false · deterministische Pipeline</span>
+      <span id="llm-note">llm_used: false · deterministic pipeline</span>
     </footer>
   </nav>
 
-  <section class="pane pane-center" id="pane-evidence" aria-label="Evidenzkarte">
-    <div id="evidence-card" class="empty-state">Feststellung auswählen …</div>
+  <section class="pane pane-center" id="pane-evidence" aria-label="Evidence card">
+    <div id="evidence-card" class="empty-state">Select a finding …</div>
   </section>
 
-  <aside class="pane pane-right" id="pane-source" aria-label="Quellenansicht">
-    <div class="src-caption" id="src-caption">Quellenansicht — Zitat in der Evidenzkarte anklicken</div>
+  <aside class="pane pane-right" id="pane-source" aria-label="Source view">
+    <div class="src-caption" id="src-caption">–</div>
     <div class="src-body" id="src-body">
-      <div class="empty-state">Jedes Zitat lädt hier die Originalquelle:<br>
-      Tabellenzeilen als Ausschnitt mit Hervorhebung,<br>
-      PDF-Seiten als Bild mit markierter Fundstelle.</div>
+      <div class="empty-state" id="src-hint">–</div>
     </div>
   </aside>
 </main>
