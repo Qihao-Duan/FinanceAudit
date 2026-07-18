@@ -19,6 +19,7 @@ from pathlib import Path
 
 from financeaudit.core import config
 from financeaudit.llm.client import structured_call, extract_digit_tokens
+from financeaudit.llm.calllog import log_event
 from financeaudit.llm.prompts import (
     NARRATIVE_SYSTEM as SYSTEM,
     NARRATIVE_SCHEMA as SCHEMA,
@@ -95,6 +96,8 @@ def enrich(build_dir: Path) -> int:
         stats["calls"] += 1
         if out is None:
             stats["failed"] += 1
+            log_event("filter_decision", {"finding_id": f.get("finding_id"),
+                                           "decision": "failed_api"})
             continue
         usage = out.pop("_usage", {})
         # post-filter 1: no invented numbers
@@ -103,12 +106,17 @@ def enrich(build_dir: Path) -> int:
                                           "n": out.get("auditor_next_steps")})
         if not produced.issubset(allowed):
             stats["rejected_numbers"] += 1
+            log_event("filter_decision", {"finding_id": f.get("finding_id"),
+                                           "decision": "rejected_numbers",
+                                           "offending_tokens": sorted(produced - allowed)[:10]})
             continue
         # post-filter 2: no fraud wording without intent indicators
         text = (out.get("summary", "") + " " +
                 " ".join(out.get("auditor_next_steps", []))).lower()
         if not payload["intent_indicators"] and any(t in text for t in fraud_terms):
             stats["rejected_wording"] += 1
+            log_event("filter_decision", {"finding_id": f.get("finding_id"),
+                                           "decision": "rejected_wording"})
             continue
         f["description_llm"] = out["summary"]
         f["next_steps_llm"] = out.get("auditor_next_steps", [])
@@ -117,6 +125,9 @@ def enrich(build_dir: Path) -> int:
                      "constraints": "facts_locked; post-filtered"}
         f["llm_used"] = True
         stats["accepted"] += 1
+        log_event("filter_decision", {"finding_id": f.get("finding_id"),
+                                       "decision": "accepted",
+                                       "prompt_version": NARRATIVE_PROMPT_VERSION})
 
     if isinstance(data, dict):
         meta = data.setdefault("meta", {})

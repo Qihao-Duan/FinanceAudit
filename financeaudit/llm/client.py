@@ -10,9 +10,11 @@ Design rules (PLAN §2.3, CONTRACTS §0):
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Optional
 
 from financeaudit.core import config
+from financeaudit.llm.calllog import log_event
 
 
 def structured_call(model: str, system: str, user: str, schema_name: str,
@@ -27,18 +29,25 @@ def structured_call(model: str, system: str, user: str, schema_name: str,
     if not config.llm_available():
         return None
     import time
-    last_exc = None
+    call_id = f"{os.getpid()}-{int(time.time()*1000)}"
+    log_event("llm_request", {"call_id": call_id, "model": model,
+                               "schema_name": schema_name,
+                               "system": system, "user": user})
     for attempt in range(max_attempts):
         if attempt:
             time.sleep(2 * attempt)
-        out = _one_call(model, system, user, schema_name, schema, timeout)
+        t0 = time.time()
+        out = _one_call(model, system, user, schema_name, schema, timeout,
+                        call_id=call_id, attempt=attempt, t0=t0)
         if out is not None:
             return out
     return None
 
 
 def _one_call(model: str, system: str, user: str, schema_name: str,
-              schema: dict, timeout: int) -> Optional[dict]:
+              schema: dict, timeout: int, call_id: str = "",
+              attempt: int = 0, t0: float = 0.0) -> Optional[dict]:
+    import time
     try:
         from openai import OpenAI
         client = OpenAI()
@@ -60,8 +69,17 @@ def _one_call(model: str, system: str, user: str, schema_name: str,
             "prompt_tokens": getattr(rsp.usage, "prompt_tokens", None),
             "completion_tokens": getattr(rsp.usage, "completion_tokens", None),
         }
+        log_event("llm_response", {"call_id": call_id, "attempt": attempt,
+                                    "model": model,
+                                    "latency_s": round(time.time() - t0, 3),
+                                    "response": content,
+                                    "usage": out["_usage"]})
         return out
     except Exception as exc:  # any failure -> deterministic fallback
+        log_event("llm_error", {"call_id": call_id, "attempt": attempt,
+                                 "model": model,
+                                 "latency_s": round(time.time() - t0, 3) if t0 else None,
+                                 "error": str(exc)[:400]})
         print(f"[llm] call failed ({model}): {str(exc)[:160]}")
         return None
 

@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -53,7 +54,8 @@ def main() -> int:
         cmd = [sys.executable, "-m", module] + [a.format(**subst) for a in argv]
         banner(name, " ".join(cmd[1:]))
         t0 = time.perf_counter()
-        rc = subprocess.call(cmd, cwd=str(REPO))
+        env = dict(os.environ, FA_STAGE=name)
+        rc = subprocess.call(cmd, cwd=str(REPO), env=env)
         dt = time.perf_counter() - t0
         timings.append((name, dt, rc))
         print(f"-- {name} finished in {dt:.2f}s (exit {rc})", flush=True)
