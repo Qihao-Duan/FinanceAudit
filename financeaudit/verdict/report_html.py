@@ -381,7 +381,9 @@ def _card(f, rank=None) -> str:
         f"<div class='badges'>{badges}</div>"
 
         f"<div class='block'><h3>Summary</h3>"
-        f"<p class='desc'>{_e(f.get('description'))}</p></div>"
+        f"<p class='desc'>{_e(f.get('description_llm') or f.get('description'))}"
+        f"{'<span class=llmtag>AI-drafted narrative (facts locked, post-filtered)</span>' if f.get('description_llm') else ''}</p>"
+        f"{_next_steps_html(f)}</div>"
 
         f"<div class='block'><h3>Key evidence</h3>{core_html}{supp_html}</div>"
 
@@ -430,6 +432,16 @@ def _exec_strip(findings, meta) -> str:
             f"Citation resolvability is verified separately by evalx "
             f"(build/eval_report.json).</div>")
 
+
+
+
+def _next_steps_html(f: dict) -> str:
+    steps = f.get("next_steps_llm") or []
+    if not steps:
+        return ""
+    lis = "".join(f"<li>{_e(x)}</li>" for x in steps[:3])
+    return (f"<div class='nextsteps'><span class='ns-h'>Suggested next steps "
+            f"(AI-drafted)</span><ul>{lis}</ul></div>")
 
 def render(findings: list[dict], meta: dict) -> str:
     report = sorted((f for f in findings if f.get("disposition") == "report"),
@@ -492,7 +504,7 @@ def render(findings: list[dict], meta: dict) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FinanceAudit — Findings Report (Muster Verpackungen GmbH, FY2025)</title>
-<style>{_CSS}</style>
+<style>{_CSS}.llmtag{{display:inline-block;margin-left:8px;font-size:10px;color:#64748b;border:1px solid #cbd5e1;border-radius:3px;padding:0 5px;vertical-align:middle}}.nextsteps{{margin-top:8px;font-size:12.5px}}.nextsteps .ns-h{{font-weight:600;color:#334155}}.nextsteps ul{{margin:4px 0 0 18px}}</style>
 </head><body>
 <div class="wrap">
 <div class="rpt-head">

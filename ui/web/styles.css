@@ -377,3 +377,8 @@ ul.plain li { margin: 2px 0; line-height: 1.4; }
   .supp-details:not([open]) .supp-body, .def-details:not([open]) .def-body { display: block !important; }
   .supp-details .supp-summary, .def-details .def-summary { display: none; }
 }
+
+.llmtag{display:inline-block;margin-left:8px;font-size:10px;color:var(--muted,#64748b);border:1px solid #cbd5e1;border-radius:3px;padding:0 5px;vertical-align:middle}
+.nextsteps{margin-top:8px;font-size:12.5px}
+.nextsteps .ns-h{font-weight:600}
+.nextsteps ul{margin:4px 0 0 18px}

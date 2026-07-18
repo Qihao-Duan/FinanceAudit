@@ -15,8 +15,28 @@ GDPDU_SEP = ";"
 DATE_FMT = "%d.%m.%Y"
 
 # LLM (optional — every call site needs a deterministic fallback; see CONTRACTS §0)
-OPENAI_MODEL_REASONING = os.environ.get("FA_MODEL_REASONING", "gpt-5.2")
-OPENAI_MODEL_FAST = os.environ.get("FA_MODEL_FAST", "gpt-5.2-mini")
+# Model IDs verified against GET /v1/models on 2026-07-18.
+OPENAI_MODEL_REASONING = os.environ.get("FA_MODEL_REASONING", "gpt-5.5")
+OPENAI_MODEL_FAST = os.environ.get("FA_MODEL_FAST", "gpt-5.4-mini")
+
+
+def _load_dotenv() -> None:
+    """Minimal .env loader (repo root, gitignored). Never overrides real env."""
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
+        return
+    try:
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip())
+    except OSError:
+        pass
+
+
+_load_dotenv()
 
 
 def llm_available() -> bool:

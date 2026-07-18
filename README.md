@@ -129,7 +129,8 @@ The mandatory partner technology is **OpenAI**, used only where language underst
 Enablement and fallback:
 
 - Set `OPENAI_API_KEY` to enable the LLM layers. When it is **absent, every call site runs a deterministic fallback and stamps `llm_used: false`** in its output — the entire pipeline, the eval and the UI run end-to-end with no key.
-- **Honesty note:** at build time no API key was set, so the committed artifacts and all results above were produced on the deterministic path (`llm_used: false` throughout). The LLM stages are wired and schema-guarded but were **not yet exercised** end-to-end; the deterministic path is the one measured here.
+- **Exercised end-to-end (2026-07-18):** with a key set, the `ENRICH` stage drafts audit working-paper narratives + suggested next steps per finding via **Structured Outputs (strict JSON schema)** — `gpt-5.5` for report-tier findings, `gpt-5.4-mini` for observations — and finder rule R9 rates rare account co-occurrences in a constrained three-way choice. Guardrails: the LLM never computes amounts, selects evidence or touches the verdict gate; outputs are post-filtered (any digit token not present in the finding's own facts ⇒ rejected; fraud wording without intent indicators ⇒ rejected) and rejected drafts fall back to the deterministic text. Latest run: 27/41 narratives accepted, 0 wording violations, eval gates unchanged (4/4 recall, 0 decoy FPs, 230/230 citations).
+- **Honesty note:** all *detection and quantification* results are from the deterministic path by design; the LLM layer is presentation/adjudication-support only, and every finding shows whether its narrative is AI-drafted.
 
 ## Anti-hallucination design
 

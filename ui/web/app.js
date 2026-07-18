@@ -274,7 +274,8 @@ function cardHtml(f) {
 
   <section class="ec-block">
     <h2 class="ec-h">${esc(t("card_summary"))}</h2>
-    <p class="ec-desc">${esc(f.description || "")}</p>
+    <p class="ec-desc">${esc(f.description_llm || f.description || "")}${f.description_llm ? `<span class="llmtag">${esc(t("llm_tag"))}</span>` : ""}</p>
+    ${(f.next_steps_llm && f.next_steps_llm.length) ? `<div class="nextsteps"><span class="ns-h">${esc(t("llm_next_steps"))}</span><ul>${f.next_steps_llm.slice(0,3).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
   </section>
 
   <section class="ec-block">

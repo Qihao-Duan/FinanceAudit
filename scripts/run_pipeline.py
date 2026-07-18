@@ -27,6 +27,7 @@ STAGES = [
     ("CLAIMS", "financeaudit.claims.run", ["--build", "{build}"]),
     ("DEFENSE", "financeaudit.defense.run", ["--build", "{build}"]),
     ("VERDICT", "financeaudit.verdict.run", ["--build", "{build}"]),
+    ("ENRICH", "financeaudit.llm.enrich", ["--build", "{build}"]),
     ("EVAL", "evalx.run", ["--build", "{build}"]),
 ]
 

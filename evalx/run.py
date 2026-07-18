@@ -138,6 +138,7 @@ _NARRATIVE_KEYS = {
     "mechanism", "assertion", "description", "narrative", "summary", "note",
     "text", "quote", "expected_evidence", "missing_evidence", "pbc_requests",
     "counterevidence", "entity_label", "name", "title", "rule_name",
+    "description_llm", "next_steps_llm",
 }
 
 

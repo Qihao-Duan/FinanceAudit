@@ -386,7 +386,8 @@ def api_status():
             "audit_duckdb": (BUILD_DIR / "audit.duckdb").exists(),
         },
         "n_findings": len(get_findings()),
-        "llm_used": False,
+        "llm_used": (lambda: bool((lambda d: d.get("meta", {}).get("llm_used") if isinstance(d, dict) else False)(
+            _load_json(BUILD_DIR / "findings.json"))) if (BUILD_DIR / "findings.json").exists() else False)(),
     }
 
 
