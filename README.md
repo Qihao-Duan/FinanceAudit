@@ -11,7 +11,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 # place the dossier under data/practice/ (not in the repo)
 python3 scripts/run_pipeline.py          # ingest → finder → claims → defense → verdict
-uvicorn ui.server:app --port 8642        # evidence-card UI
+./scripts/serve_ui.sh                    # evidence-card UI at http://127.0.0.1:8642
 python3 -m evalx.run                     # regression metrics on the practice dossier
 ```
 
