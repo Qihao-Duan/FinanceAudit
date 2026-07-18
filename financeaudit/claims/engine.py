@@ -131,6 +131,11 @@ def classify(pack) -> dict:
     if "R04" in rules:
         return {"scheme": "cutoff", "mechanism": mech, "tier": tier,
                 "anomaly_type": "rule_based", "finding_class": "misstatement_risk"}
+    # duplicate/over-payment (R20): a control breach with a ledger-provable net
+    # over-clearance — report-capable, handled by its dedicated builder.
+    if "R20" in rules:
+        return {"scheme": "controls_breach", "mechanism": mech, "tier": tier,
+                "anomaly_type": "rule_based", "finding_class": "control_breach"}
     # expense_capitalization ONLY for the asset-account pack: an R15
     # evidence-obligation gap on a *vendor* pack concerns that vendor's own
     # obligation type (contract / investment request / related-party agreement)
@@ -700,6 +705,73 @@ def build_related_party(con, pack, fid) -> dict:
     }
 
 
+def build_duplicate_payment(con, pack, fid) -> dict:
+    """Dedicated builder for R20 duplicate/over-payment packs (integrator).
+
+    Core numeric claim = signed net of ALL AP legs (330000-<vendor>) carrying
+    the invoice doc_ref — invoice credit + every payment debit — recomputed
+    with Decimal at zero tolerance from the cited rows' raw amount strings.
+    """
+    cand = next((c for c in pack["candidates"] if c["rule_id"] == "R20"), None)
+    if cand is None:
+        return {"claims": [], "title": "", "description": "",
+                "expected_evidence": [], "missing_evidence": [], "pbc_requests": []}
+    m = cand.get("metrics", {})
+    sub, doc_ref = m.get("vendor"), m.get("invoice")
+    n_pay, paid = m.get("n_payments"), m.get("gross_paid")
+    payable, over = m.get("payable"), m.get("net_overpayment")
+    ap_rows = con.execute(
+        "SELECT source_id, amount_raw, posting_type, entry_id FROM gl "
+        "WHERE hb_account='330000' AND sub_account=? AND doc_ref=? "
+        "ORDER BY entry_id, line_no", [sub, doc_ref]).fetchall()
+    refs = [r[0] for r in ap_rows]
+    cits = [cell_citation(con, r[0], "BUCHUNGSBETRAG", r[1]) for r in ap_rows]
+    entries = ", ".join(sorted({str(r[3]) for r in ap_rows if r[2] == "Zahlung"}))
+    claims = [
+        _claim(fid, 1, "core", "numerical",
+               f"The payable position 330000-{sub} for invoice {doc_ref} nets to a "
+               f"debit balance of {over:,.2f} EUR: a booked payable of "
+               f"{payable:,.2f} EUR was cleared by {n_pay} separate payment entries "
+               f"totalling {paid:,.2f} EUR.",
+               cits,
+               value=_amount_value(
+                   Decimal(str(over)),
+                   f"signed sum of all 330000-{sub} postings with doc_ref "
+                   f"{doc_ref} = -{payable:,.2f} + {paid:,.2f} = {over:,.2f}",
+                   refs, "sum")),
+        _claim(fid, 2, "core", "absence",
+               f"No credit note, refund or reversing entry reducing the excess "
+               f"payment on invoice {doc_ref} was found in the provided and "
+               f"parsed materials (all {len(refs)} AP legs for this invoice are "
+               f"cited; the defense predicate 'offsetting_refund_exists' returned "
+               f"not_found).",
+               cits,
+               verification={"method": "deterministic ledger scan + defense "
+                                       "predicate offsetting_refund_exists",
+                             "llm_used": False}),
+        _claim(fid, 3, "supporting", "temporal",
+               f"The payments clearing invoice {doc_ref} are distinct journal "
+               f"entries ({entries}), i.e. not a single split settlement.",
+               cits),
+    ]
+    return {
+        "claims": claims,
+        "title": (f"Vendor account {sub} ({pack['entity_label']}) — invoice "
+                  f"{doc_ref} settled by {n_pay} payments, {over:,.2f} EUR "
+                  f"over-clearance without offsetting credit"),
+        "description": (cand.get("description", "") +
+                        " A refund or credit outside the parsed materials could "
+                        "explain the balance; clarification is required before "
+                        "any conclusion about the recipient."),
+        "expected_evidence": ["credit note or refund for the excess payment",
+                             "payment-run documentation for both payments"],
+        "missing_evidence": [f"offsetting credit for invoice {doc_ref}: not "
+                             f"found in the provided and parsed materials"],
+        "pbc_requests": [f"bank statement covering the payments of invoice {doc_ref}",
+                         f"explanation for the repeated settlement of invoice {doc_ref}"],
+    }
+
+
 def build_generic(con, pack, fid) -> dict:
     """Fallback builder for packs without a dedicated scheme (R01 user packs,
     R08 statistical signals, unknown future rules). Always neutral wording."""
@@ -772,7 +844,12 @@ def build_finding(con, pack, seq: int) -> dict:
     cls = classify(pack)
     fid = f"F-{seq:04d}"
     builder = _BUILDERS.get(cls["scheme"], build_generic)
-    if builder is build_generic or (cls["scheme"] == "controls_breach"):
+    pack_rules = {c["rule_id"] for c in pack["candidates"]}
+    if "R20" in pack_rules:
+        body = build_duplicate_payment(con, pack, fid)
+        if not body["claims"]:
+            body = build_generic(con, pack, fid)
+    elif builder is build_generic or (cls["scheme"] == "controls_breach"):
         body = build_generic(con, pack, fid)
     else:
         body = builder(con, pack, fid)

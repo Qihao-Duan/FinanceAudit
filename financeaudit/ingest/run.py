@@ -17,10 +17,15 @@ import pandas as pd
 
 from financeaudit.core import config
 from .common import ManifestBuilder, SourceRegistry
-from .gdpdu import parse_gdpdu
+from .gdpdu import GDPDU_TABLE_SCHEMAS, parse_gdpdu
 from .profiler import profile_all
 from .proptests import run_property_tests
-from .sidecars import parse_exportprotokoll, parse_sidecars
+from .sidecars import (
+    CSV_TABLE_SCHEMAS,
+    XLSX_TABLE_SCHEMAS,
+    parse_exportprotokoll,
+    parse_sidecars,
+)
 
 # contract-first column orders (extras appended automatically)
 ORDER = {
@@ -84,7 +89,12 @@ DOUBLE_COLS = {
 
 def write_table(con, name, rows):
     if not rows:
-        cols = ORDER.get(name, ["row_id", "source_id"])
+        # ROBUSTNESS (S2/S4/S8/S9 absent/empty table): create the empty table with its FULL
+        # declared schema so downstream rules resolve every column (0 rows) instead of a
+        # Binder Error. Prefer the full derived schemas over ORDER (a partial ordering hint
+        # that omits raw_*/*_dec columns); ORDER is only a last resort for internal tables.
+        cols = (GDPDU_TABLE_SCHEMAS.get(name) or CSV_TABLE_SCHEMAS.get(name)
+                or XLSX_TABLE_SCHEMAS.get(name) or ORDER.get(name) or ["row_id", "source_id"])
         df = pd.DataFrame(columns=cols)
     else:
         df = pd.DataFrame(rows)

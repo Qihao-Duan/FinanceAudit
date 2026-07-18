@@ -243,10 +243,55 @@ def defend_related_party(con, finding, pack):
     return preds
 
 
+def offsetting_refund_exists(con, acct, doc_ref):
+    """Innocence predicate for a duplicate / over-payment (finder rule R20).
+
+    A booked payable is a credit to 330000-<acct>; each payment is a debit; a
+    credit note / refund is a NON-invoice credit (amount < 0) posted back to the
+    same AP account for the same invoice. If one exists, the excess payment was
+    remediated inside the ledger and the account nets back toward zero ->
+    exculpatory. Tone / prestige are never used; this is a pure ledger lookup."""
+    if not acct or not doc_ref:
+        return _p("offsetting_refund_exists",
+                  "Is the over-payment reversed by a credit note or refund?",
+                  "not_checkable", reason="no vendor/invoice key on the signal")
+    refunds = q(con, "SELECT * FROM gl WHERE sub_account=? AND doc_ref=? "
+                     "AND posting_type <> 'Kreditorenrechnung' AND amount < 0",
+                [acct, doc_ref])
+    net = q(con, "SELECT ROUND(SUM(amount),2) AS n FROM gl "
+                 "WHERE sub_account=? AND doc_ref=?", [acct, doc_ref])[0]["n"]
+    question = (f"Is the over-payment of invoice {doc_ref} reversed by a credit note "
+                f"or refund on vendor account {acct} within the ledger?")
+    if refunds:
+        credit_refs = sorted({(r.get("raw_belegnummer") or r.get("doc_ref"))
+                              for r in refunds if (r.get("raw_belegnummer") or r.get("doc_ref"))})
+        refunded = round(sum(abs(r["amount"]) for r in refunds
+                             if r.get("amount") is not None), 2)
+        return _p("offsetting_refund_exists", question, "found",
+                  [r["source_id"] for r in refunds],
+                  {"n_refund_rows": len(refunds), "credit_note_refs": credit_refs,
+                   "refunded_amount": refunded, "net_ap_for_invoice_after_refund": net,
+                   "note": "an offsetting credit note / refund reduces the over-payment; "
+                           "the vendor account nets back toward zero for this invoice"})
+    return _p("offsetting_refund_exists", question, "not_found", [],
+              {"note": "no credit note / refund reverses the excess within the provided "
+                       "and parsed ledger", "net_ap_for_invoice": net})
+
+
 def defend_generic(con, finding, pack):
+    preds = []
+    # Duplicate / over-payment (finder rule R20) routes to scheme controls_breach
+    # -> this generic defender. Its exculpatory fact is an offsetting credit
+    # note / refund, so run that innocence check first whenever an R20 signal is
+    # in the pack (finder-level symmetry already suppresses the offset case; this
+    # is the explicit, logged second layer, and neutralises a duplicate finding
+    # if a refund is present).
+    for c in pack.get("candidates", []):
+        if c.get("rule_id") == "R20":
+            m = c.get("metrics") or {}
+            preds.append(offsetting_refund_exists(con, m.get("vendor"), m.get("invoice")))
     entry_ids = sorted({r.get("entry_id") for r in pack.get("rows", {}).get("gl", [])
                         if r.get("entry_id")})
-    preds = []
     if entry_ids:
         preds.append(journal_approval(con, entry_ids))
     ph = None

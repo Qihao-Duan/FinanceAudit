@@ -92,6 +92,13 @@ def parse_gdpdu(data_dir: Path, registry: SourceRegistry, manifest: ManifestBuil
         "AV/Anlagenbuchungen.txt": "asset transactions FY2025 (full export, attested); account-level AfA rows + asset-level acquisitions/disposal",
     }
 
+    # ROBUSTNESS: pre-create every expected GDPdU table (empty) so a skipped/absent file
+    # still yields a DuckDB table (with its full schema via GDPDU_TABLE_SCHEMAS in write_table)
+    # instead of a missing-table Binder Error downstream. A missing CORE ledger (gl) is caught
+    # separately as a clean A-class coverage failure (proptests A1b core_ledger_coverage).
+    for _rel, (tn, _m) in spec.items():
+        tables.setdefault(tn, [])
+
     for rel_path, (table_name, mapper) in spec.items():
         cols = declared_cols.get(rel_path)
         errors = []
@@ -100,6 +107,16 @@ def parse_gdpdu(data_dir: Path, registry: SourceRegistry, manifest: ManifestBuil
                          expected_units=None, parsed_units=0,
                          parser_errors=[f"no index.xml declaration for {rel_path}"],
                          population_scope=scopes.get(rel_path, ""), parse_coverage="failed")
+            continue
+        if not (data_dir / rel_path).exists():
+            # ROBUSTNESS: an absent GDPdU txt (e.g. finals ships without the asset subledger)
+            # degrades to a 'failed'-coverage manifest entry + empty table; dependent rules
+            # (asset roll-forward, tie-outs) degrade with no phantom absence, pipeline continues.
+            manifest.add(file=rel_path, file_hash=None, size_bytes=None,
+                         expected_units=declared_counts.get(rel_path), parsed_units=0,
+                         parser_errors=[f"{rel_path}: file not provided in this dossier"],
+                         population_scope=scopes.get(rel_path, ""), parse_coverage="failed",
+                         provided=False)
             continue
         file_hash, size, rows = _load_txt(data_dir, rel_path, registry, len(cols), errors)
         mapped = []
@@ -266,3 +283,25 @@ def _map_asset_tx(f):
     }
     rec.update(_amount(f, 3))
     return rec
+
+
+# ROBUSTNESS: full empty-table schema per GDPdU table, DERIVED from the mappers themselves
+# (call each with padded-empty fields → the row-dict keys). Used by write_table when a table
+# is empty/absent so downstream rules resolve every column (0 rows) instead of a Binder Error.
+# Derived rather than hand-listed so it can never drift from the mappers. NOTE: this is the
+# FULL column set (incl. raw_*/amount_dec), a superset of the ORDER hints in ingest/run.py.
+def _derive_gdpdu_schema(mapper, nfields: int = 40):
+    rec = mapper([""] * nfields)
+    return ["row_id", "source_id"] + list(rec.keys())
+
+
+GDPDU_TABLE_SCHEMAS = {
+    "gl_accounts": _derive_gdpdu_schema(_map_gl_account),
+    "gl": _derive_gdpdu_schema(_map_gl),
+    "customers": _derive_gdpdu_schema(_map_customer),
+    "customer_tx": _derive_gdpdu_schema(_map_customer_tx),
+    "vendors": _derive_gdpdu_schema(_map_vendor),
+    "vendor_tx": _derive_gdpdu_schema(_map_vendor_tx),
+    "assets": _derive_gdpdu_schema(_map_asset),
+    "asset_tx": _derive_gdpdu_schema(_map_asset_tx),
+}

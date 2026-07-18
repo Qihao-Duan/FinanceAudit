@@ -1,5 +1,7 @@
 data/
 build/
+build_*/
+build_rob_report.json
 .env
 __pycache__/
 *.pyc

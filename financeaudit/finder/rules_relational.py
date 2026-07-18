@@ -586,6 +586,17 @@ def r18_reconciliation_breaks(con, thresholds):
                         "peers_with_expected_evidence": 0}, description))
 
     # (1) B-class deviations recorded by ingest ---------------------------------
+    # Provenance for file-level integrity deviations (row counts / hashes /
+    # declared sums that disagree with the Exportprotokoll, or ledger tie-out
+    # breaks): cite the Exportprotokoll page — the export-integrity document
+    # whose attestations are being violated. Every candidate MUST carry
+    # source_ids (CONTRACTS §3); without this, any post-export-modified dossier
+    # (e.g. the duplicate-payment mutation) produced empty-source_id candidates
+    # and hard-stopped the finder. On a pristine dossier this loop emits nothing
+    # (no B-class deviations).
+    export_sids = [r[0] for r in con.execute(
+        "SELECT source_id FROM source_registry "
+        "WHERE file ILIKE '%exportprotokoll%' AND kind = 'page' ORDER BY 1").fetchall()]
     try:
         from financeaudit.core.config import BUILD_DIR
         pt_path = Path(BUILD_DIR) / "property_tests.json"
@@ -596,7 +607,13 @@ def r18_reconciliation_breaks(con, thresholds):
         for t in pt.get("b_class", []):
             if t.get("passed"):
                 continue
-            emit("medium", f"property_test:{t['name']}", t["name"], [], [],
+            if not export_sids:
+                # no export-integrity document to cite; the specific ledger
+                # tie-out breaks are still emitted with row-level source_ids by
+                # blocks (4)/(5)/(6) below — skip the generic summary candidate
+                # rather than emit one with empty source_ids.
+                continue
+            emit("medium", f"property_test:{t['name']}", t["name"], [], export_sids,
                  {"check": "ingest_b_class", "deviation": t.get("deviation"),
                   "detail": t.get("detail")},
                  (f"Data-reconciliation expectation '{t['name']}' shows a deviation of "

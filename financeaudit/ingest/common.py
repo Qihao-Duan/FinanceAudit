@@ -8,7 +8,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import re
-from datetime import date, datetime
+from datetime import date, datetime  # noqa: F401 (date re-exported for callers)
 from decimal import Decimal
 from pathlib import Path
 from typing import Optional
@@ -81,14 +81,75 @@ def dec(canon: Optional[str]) -> Decimal:
 
 
 def read_delimited(path: Path):
-    """Read a ;-separated cp1252 file. Returns list of (physical_line_no_1based, fields, raw_line)."""
+    """Read a ;-separated cp1252 file. Returns list of (physical_line_no_1based, fields, raw_line).
+
+    ROBUSTNESS (evalx/robustness_test S7): the GDPdU export convention is cp1252, but a
+    finals dossier could ship a UTF-8 sidecar. We try cp1252 first (lossless for the
+    practice set) and fall back to utf-8 only when cp1252 raises a decode error, so a
+    UTF-8 file never hard-crashes the ingest. The chosen encoding is returned via the
+    module-level last-read marker for the caller's manifest note.
+    """
+    global LAST_READ_ENCODING
+    try:
+        with open(path, encoding=ENCODING, newline="") as fh:
+            text = fh.read()
+        LAST_READ_ENCODING = ENCODING
+    except UnicodeDecodeError:
+        with open(path, encoding="utf-8", newline="") as fh:
+            text = fh.read()
+        LAST_READ_ENCODING = "utf-8"
     out = []
-    with open(path, encoding=ENCODING, newline="") as fh:
-        raw_lines = fh.read().splitlines()
-    for i, raw in enumerate(raw_lines, start=1):
+    for i, raw in enumerate(text.splitlines(), start=1):
         fields = next(csv.reader([raw], delimiter=SEP, quotechar='"'))
         out.append((i, fields, raw))
     return out
+
+
+# module-level marker set by the most recent read_delimited() call (see docstring)
+LAST_READ_ENCODING = ENCODING
+
+# --- decimal-convention detection (ROBUSTNESS S7) --------------------------
+# GDPdU/German convention: '.' thousands, ',' decimal ("1.234,56" | "1234,56" | "1.234").
+# Dot-decimal convention (e.g. a UTF-8 finals export): '.' decimal, optional ',' thousands
+# ("1234.56" | "1,234.56"). Integer-only tokens are convention-neutral.
+_DE_AMOUNT_RE = re.compile(r"^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$|^-?\d+,\d+$")
+_DOT_DECIMAL_RE = re.compile(r"^-?\d+\.\d{1,2}$")
+_US_GROUPED_RE = re.compile(r"^-?\d{1,3}(?:,\d{3})+\.\d{1,2}$")
+
+
+def detect_decimal_convention(raw_values) -> str:
+    """Infer 'de' (German comma-decimal, the default) or 'dot' (dot-decimal) for one column.
+
+    Conservative: returns 'dot' ONLY when the column shows dot-decimal evidence and NO
+    German-specific evidence. Any comma-decimal or dot-thousands token forces 'de'. This
+    keeps every practice-set column on 'de' (byte-identical output) while a purely
+    dot-decimal finals column parses correctly instead of being silently inflated ~100x.
+    """
+    dot = de = 0
+    for v in raw_values:
+        s = str(v).strip()
+        if not s:
+            continue
+        if _DE_AMOUNT_RE.match(s):
+            de += 1
+        elif _DOT_DECIMAL_RE.match(s) or _US_GROUPED_RE.match(s):
+            dot += 1
+    return "dot" if de == 0 and dot > 0 else "de"
+
+
+def parse_amount_conv(s: Optional[str], conv: str):
+    """Convention-aware amount parse. conv=='dot' -> dot decimal (optional ',' thousands);
+    anything else delegates to parse_german_amount (unchanged default path)."""
+    if conv != "dot":
+        return parse_german_amount(s)
+    if s is None:
+        return None, None, None
+    raw = str(s).strip()
+    if not raw:
+        return None, None, None
+    canon = raw.replace(",", "")  # strip US thousands separators; '.' stays decimal
+    val = float(Decimal(canon))   # raises on garbage -> caller surfaces as parser error
+    return val, raw, canon
 
 
 class SourceRegistry:
@@ -148,7 +209,12 @@ class ManifestBuilder:
         parser_errors: list,
         population_scope: str,
         parse_coverage: Optional[str] = None,
+        provided: bool = True,
     ):
+        # `provided` distinguishes a file that is ABSENT from the dossier (provided=False,
+        # a legitimate coverage gap that degrades) from a file that was present but our
+        # parser could not read (a real bug). A-class parser-self-consistency tests skip
+        # not-provided files; the core GL is guarded separately (proptests A1b).
         if parse_coverage is None:
             if parser_errors:
                 parse_coverage = "partial" if parsed_units else "failed"
@@ -166,6 +232,7 @@ class ManifestBuilder:
                 "parser_errors": parser_errors,
                 "parse_coverage": parse_coverage,
                 "population_scope": population_scope,
+                "provided": provided,
                 "extractor_version": EXTRACTOR_VERSION,
             }
         )

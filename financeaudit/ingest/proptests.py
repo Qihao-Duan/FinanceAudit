@@ -48,27 +48,60 @@ def run_property_tests(con, tables, manifest_rows, protokoll, protokoll_errors):
     man = {m["file"]: m for m in manifest_rows}
 
     # ---------------------------------------------------------------- A-class
-    # A1: parsed rows == Exportprotokoll declared counts (fallback: structural)
-    details, ok = [], True
-    for f in GDPDU_TXT_FILES:
-        parsed = man.get(f, {}).get("parsed_units")
-        declared = protokoll.get(f, {}).get("declared_rows")
-        if declared is None:
-            details.append(f"{f}: parsed={parsed}, no declared count (protokoll gap)")
-            continue
-        good = parsed == declared
-        ok &= good
-        details.append(f"{f}: parsed={parsed} declared={declared} {'OK' if good else 'FAIL'}")
-    a_class.append(_a("gdpdu_rowcounts_vs_exportprotokoll", ok, "; ".join(details)))
+    # A1 (parser self-consistency): every GDPdU txt was actually parsed (not
+    # 'failed') so no file was silently dropped. NOTE: the *row-count vs the
+    # external Exportprotokoll* comparison is deliberately NOT here — it moved to
+    # B-class (see B0 below). Rationale: read_delimited() consumes every physical
+    # line of the file and A2 fails on any field-count/typing/mapper error, so
+    # "parsed_units matches the file" is already an A-class guarantee. A mismatch
+    # against the Exportprotokoll's *declared* count means the file itself was
+    # modified after the GDPdU export (rows added/removed) — an integrity signal
+    # ABOUT THE DOSSIER, exactly like the SHA-256 (B7) and declared-sum (B6)
+    # deviations, not a bug in our parser. Treating it as A-class hard-stopped the
+    # pipeline on any post-export-modified dossier (e.g. the duplicate-payment
+    # mutation), which is precisely the final-dossier detection scenario. So the
+    # comparison is a recorded deviation, never a crash.
+    # Only PRESENT files count here: a file ABSENT from the dossier (provided=False) is a
+    # coverage gap that degrades (see gdpdu.py / sidecars.py guards + S8), not a parser drop.
+    failed_files = [f for f in GDPDU_TXT_FILES
+                    if man.get(f, {}).get("provided", True)
+                    and man.get(f, {}).get("parse_coverage") == "failed"]
+    a_class.append(_a("gdpdu_files_parsed", not failed_files,
+                      "all provided GDPdU txt files parsed"
+                      if not failed_files else f"unparseable: {failed_files}"))
 
-    # A2: every GDPdU row had exactly the declared number of fields + no mapper errors
+    # A1b (core-ledger coverage — ROBUSTNESS S6): the GENERAL LEDGER is the audit backbone.
+    # If the gl table is empty, or Sachkontobuchungen.txt was declared with >0 rows but parsed
+    # 0 (present-but-empty or absent), a GL-based audit cannot run -> A-class coverage failure
+    # with a clear message and a clean nonzero exit. Scope is deliberately GL-ONLY: every OTHER
+    # GDPdU/xlsx table (chart of accounts, master data, sub-ledgers, asset ledger, OP lists) is
+    # allowed to be absent and DEGRADES (coverage gap + degraded rules, no phantom absence,
+    # pipeline completes — see S8/S9). And this NEVER fires on a row-count DEVIATION (>0 but
+    # != declared, e.g. an injected duplicate payment) — those stay B-class (B0).
+    _GL = "Sachkonten/Sachkontobuchungen.txt"
+    gl_declared = protokoll.get(_GL, {}).get("declared_rows") or 0
+    gl_parsed = man.get(_GL, {}).get("parsed_units")
+    gl_bad = len(tables.get("gl", [])) == 0 or (gl_declared > 0 and gl_parsed == 0)
+    a_class.append(_a(
+        "core_ledger_coverage", not gl_bad,
+        "general ledger present and non-empty" if not gl_bad
+        else "general ledger (Sachkontobuchungen.txt) is empty/absent — a GL-based audit "
+             "cannot be run on this dossier (coverage failure)"))
+
+    # A2: every PROVIDED GDPdU row had exactly the declared field count + no mapper errors
+    # (absent files carry a 'not provided' note that is a coverage gap, not a parser error).
     bad = {f: man[f]["parser_errors"] for f in GDPDU_TXT_FILES
-           if f in man and man[f]["parser_errors"]}
+           if f in man and man[f].get("provided", True) and man[f]["parser_errors"]}
     a_class.append(_a("gdpdu_field_count_and_typing_errors", not bad,
                       "no parser errors" if not bad else str(bad)))
 
     # A3: dual-path aggregation of the GL total (DuckDB DOUBLE vs python Decimal)
+    # ROBUSTNESS (S6 empty/absent GL): SUM over an empty table is SQL NULL -> None. Coalesce
+    # to 0 so this invariant does not raise decimal.InvalidOperation; the empty-GL condition
+    # is then reported CLEANLY by A1 (row-count vs Exportprotokoll) as a coverage failure.
     duck_total = con.execute("SELECT ROUND(SUM(amount), 2) FROM gl").fetchone()[0]
+    if duck_total is None:
+        duck_total = 0
     dec_total = sum((dec(r["amount_dec"]) for r in tables["gl"]), Decimal(0))
     match = Decimal(str(duck_total)).quantize(Decimal("0.01")) == dec_total.quantize(Decimal("0.01"))
     a_class.append(_a("dual_path_gl_total", match,
@@ -108,6 +141,25 @@ def run_property_tests(con, tables, manifest_rows, protokoll, protokoll_errors):
     a_class.append(_a("registry_pk_unique", n == nd, f"rows={n} distinct={nd}"))
 
     # ---------------------------------------------------------------- B-class
+    # B0: parsed rows vs Exportprotokoll declared counts (reclassified from
+    # A-class). A deviation means the txt files carry more/fewer rows than the
+    # Exportprotokoll attests -> the dossier was modified after the GDPdU export
+    # (e.g. an injected duplicate payment). Recorded, routed to Finder R18 as a
+    # candidate, never a crash. On a pristine dossier deviation == 0.
+    details, mismatched = [], 0
+    for f in GDPDU_TXT_FILES:
+        parsed = man.get(f, {}).get("parsed_units")
+        declared = protokoll.get(f, {}).get("declared_rows")
+        if declared is None:
+            details.append(f"{f}: parsed={parsed}, no declared count (protokoll gap)")
+            continue
+        good = parsed == declared
+        mismatched += not good
+        details.append(f"{f}: parsed={parsed} declared={declared} "
+                       f"{'OK' if good else 'DEVIATION'}")
+    b_class.append(_b("rowcounts_vs_exportprotokoll", mismatched == 0,
+                      float(mismatched), "; ".join(details)))
+
     # B1: GL zero-sum
     total = sum((dec(r["amount_dec"]) for r in tables["gl"]), Decimal(0))
     soll = sum((dec(r["amount_dec"]) for r in tables["gl"] if dec(r["amount_dec"]) > 0), Decimal(0))
