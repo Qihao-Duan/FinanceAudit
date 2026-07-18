@@ -189,6 +189,21 @@ def main(argv=None):
 
     tables.update(side_tables)
 
+    # Canonical bridge (integrator, finals 2026-07-18): route auto-adapter
+    # (ext_*) tables and the extended on-disk invoice journal into the canonical
+    # tables the deterministic rules read, so structured-agent output and
+    # renamed source files are actually consumed by the finder.
+    if _os.environ.get("FA_CANONICAL_BRIDGE") != "0":
+        from .canonical_bridge import bridge as _bridge
+        bridge_log = _bridge(tables, data_dir=data_dir, registry=registry)
+        for line in bridge_log:
+            print(f"[ingest] canonical bridge: {line}")
+        # keep side_tables view coherent for downstream cross-refs
+        for k in ("sales_invoices", "trial_balance", "op_creditors_accounts",
+                  "op_debitors_accounts", "masterdata_changes"):
+            if k in tables:
+                side_tables[k] = tables[k]
+
     cross = {
         "approval_entry_ids": {r["entry_id"] for r in tables["approval_log"] if r["entry_id"]},
         "sales_invoice_nos": {r["invoice_no"] for r in tables["sales_invoices"] if r["invoice_no"]},

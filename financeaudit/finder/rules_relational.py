@@ -620,11 +620,36 @@ def r18_reconciliation_breaks(con, thresholds):
                   f"{t.get('deviation')}: {str(t.get('detail'))[:160]}"))
 
     # (2) sales invoice journal <-> goods issues 1:1 (credit notes exempt) ------
+    # Only flag invoices whose SERVICE DATE falls in the audited fiscal year:
+    # an invoice with a next-period (e.g. 2026) service date whose goods issue
+    # legitimately hasn't happened yet is NOT a current-year revenue-timing
+    # issue (finals FP fix 2026-07-18). Carry service_date + note so the claims
+    # builder can categorise (bonus reversal / bill-and-hold / storno pair).
+    si_cols = {r[0] for r in con.execute("DESCRIBE sales_invoices").fetchall()}
+    has_gi_ref = "goods_issue_ref" in si_cols
+    has_note = "note" in si_cols
+    has_sdate = "service_date" in si_cols
+    fy = con.execute("SELECT max(EXTRACT(year FROM posting_date)) FROM gl").fetchone()[0]
+    fy = int(fy) if fy else 2025
+    note_sel = "s.note" if has_note else "NULL"
+    sdate_sel = "s.service_date" if has_sdate else "NULL"
+    # no-delivery = no goods_issues row AND (if the journal carries its own
+    # goods-issue reference) that reference is empty too.
+    gi_clause = "g.invoice_ref IS NULL"
+    if has_gi_ref:
+        gi_clause = ("g.invoice_ref IS NULL AND "
+                     "(s.goods_issue_ref IS NULL OR trim(s.goods_issue_ref) = '')")
+    year_clause = ""
+    if has_sdate:
+        year_clause = (f" AND (s.service_date IS NULL OR "
+                       f"EXTRACT(year FROM s.service_date) <= {fy})")
     inv_no_issue = con.execute(
-        """
-        SELECT s.invoice_no, s.customer_account, s.customer_name, s.amount, s.source_id
+        f"""
+        SELECT s.invoice_no, s.customer_account, s.customer_name, s.amount,
+               s.source_id, {sdate_sel} AS sdate, {note_sel} AS note
         FROM sales_invoices s LEFT JOIN goods_issues g ON g.invoice_ref = s.invoice_no
-        WHERE s.kind <> 'Gutschrift' AND g.invoice_ref IS NULL ORDER BY s.invoice_no
+        WHERE s.kind <> 'Gutschrift' AND {gi_clause}{year_clause}
+        ORDER BY s.amount DESC NULLS LAST, s.invoice_no
         """).fetchall()
     issue_no_inv = con.execute(
         """
@@ -632,12 +657,48 @@ def r18_reconciliation_breaks(con, thresholds):
         FROM goods_issues g LEFT JOIN sales_invoices s ON g.invoice_ref = s.invoice_no
         WHERE s.invoice_no IS NULL ORDER BY g.wa_no
         """).fetchall()
-    for no, acc, cname, amount, sid in inv_no_issue[:20]:
-        emit("medium", f"document:{no}", f"{no} ({cname})", [], [sid],
-             {"check": "invoice_vs_goods_issue", "invoice_no": no, "amount": amount,
-              "customer_account": acc},
-             f"Sales invoice {no} ({amount:,.2f} EUR) has no matching goods issue in the "
-             "delivery list, whose peers match 1:1.")
+    # Categorise the in-year no-delivery invoices by remark so the highest-risk
+    # patterns (year-end bonus reversal, bill-and-hold, cross-period reversal)
+    # surface distinctly; a same-period Storno pair is revenue-neutral and is
+    # deliberately NOT emitted (FP discipline).
+    def _revcat(note):
+        n = (note or "").lower()
+        if "umsatzbonus" in n or "rueckbelastung" in n or "rückbelastung" in n:
+            return "bonus_reversal", "high"
+        if "bill-and-hold" in n or "bill and hold" in n or "einlagerung" in n:
+            return "bill_and_hold", "medium"
+        if "storno" in n:
+            return "storno_pair", "medium"
+        return "no_goods_issue", "medium"
+    # Credit-note months (kind='Gutschrift') keyed by invoice_no, so a Storno
+    # pair whose reversal is in the SAME month can be recognised as revenue-
+    # neutral and suppressed (only cross-period pairs are a timing issue).
+    cn_month = {}
+    if has_sdate:
+        for cn_no, cn_sd in con.execute(
+                "SELECT invoice_no, service_date FROM sales_invoices "
+                "WHERE kind = 'Gutschrift' AND service_date IS NOT NULL").fetchall():
+            cn_month[str(cn_no)] = (cn_sd.year, cn_sd.month)
+    import re as _re
+    for no, acc, cname, amount, sid, sdate, note in inv_no_issue[:60]:
+        cat, tier = _revcat(note)
+        amt = amount or 0.0
+        if cat == "storno_pair":
+            # find the paired credit note ref (SCN… in the remark or STORNO_REF)
+            m = _re.search(r'S[CG]N\d+', note or "")
+            ref = m.group() if m else None
+            inv_m = (sdate.year, sdate.month) if sdate else None
+            ref_m = cn_month.get(ref) if ref else None
+            if inv_m and ref_m and inv_m == ref_m:
+                continue  # same-period offset — revenue-neutral, not reported
+            if not (inv_m and ref_m and inv_m != ref_m):
+                continue  # cannot confirm cross-period — do not over-report
+        emit(tier, f"document:{no}", f"{no} ({cname})", [], [sid],
+             {"check": "invoice_vs_goods_issue", "invoice_no": no, "amount": amt,
+              "customer_account": acc, "service_date": str(sdate) if sdate else None,
+              "revenue_category": cat, "remark": (note or "")[:120]},
+             f"Sales invoice {no} ({amt:,.2f} EUR) records revenue with no matching "
+             f"goods issue (service date {sdate}); peers reconcile 1:1.")
     for wa, ref, acc, amount, sid in issue_no_inv[:20]:
         emit("medium", f"document:{wa}", f"{wa} (ref {ref})", [], [sid],
              {"check": "goods_issue_vs_invoice", "wa_no": wa, "invoice_ref": ref,
