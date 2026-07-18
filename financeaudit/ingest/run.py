@@ -118,7 +118,10 @@ def write_table(con, name, rows):
         df = df[order + rest]
     dates = [c for c in DATE_COLS.get(name, []) if c in df.columns]
     for c in dates:
-        df[c] = pd.to_datetime(df[c], errors="coerce")
+        # German dates are DD.MM.YYYY — MUST parse dayfirst, else pandas
+        # silently coerces day<=12 dates (e.g. 02.01.2026) to NaT / mis-parses
+        # them (finals date bug 2026-07-18). Already-date objects pass through.
+        df[c] = pd.to_datetime(df[c], errors="coerce", dayfirst=True)
     for c in INT_COLS.get(name, []):
         if c in df.columns:
             df[c] = df[c].astype("Int64")
