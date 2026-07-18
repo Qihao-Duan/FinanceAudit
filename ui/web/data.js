@@ -85,7 +85,8 @@ async function loadTables() {
     b.addEventListener("click", () => {
       state.table = b.dataset.table;
       state.offset = 0; state.q = ""; el("data-search").value = "";
-      loadTables();  // refresh active highlight
+      el("data-tables").querySelectorAll(".tbl-item").forEach((x) =>
+        x.classList.toggle("active", x.dataset.table === state.table));
       loadTable();
     }));
 }

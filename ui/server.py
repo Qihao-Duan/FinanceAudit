@@ -84,12 +84,16 @@ def get_manifest() -> dict:
 
 
 def _duck():
+    """Per-request DuckDB cursor. The base connection is cached, but every
+    caller gets its own cursor: FastAPI sync endpoints run in a threadpool and
+    a shared connection object races on cursor state (observed as
+    ORDER BY "count_star()" binder errors under concurrent requests)."""
     con = _cache.get("_duck_con")
     if con is None:
         import duckdb
         con = duckdb.connect(str(BUILD_DIR / "audit.duckdb"), read_only=True)
         _cache["_duck_con"] = con
-    return con
+    return con.cursor()
 
 
 def lookup_source(source_id: str) -> Optional[dict]:
@@ -433,8 +437,12 @@ def api_table(name: str,
     if name not in _browse_allowed():
         raise HTTPException(404, f"unknown table {name}")
     con = _duck()
-    cur = con.execute(f'SELECT * FROM "{name}" LIMIT 0')
-    cols = [d[0] for d in cur.description]
+    cols = [r[0] for r in con.execute(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = 'main' AND table_name = ? "
+        "ORDER BY ordinal_position", [name]).fetchall()]
+    if not cols:
+        raise HTTPException(404, f"table {name} has no columns")
     order = '"row_id"' if "row_id" in cols else f'"{cols[0]}"'
     where, params = "", []
     if q:

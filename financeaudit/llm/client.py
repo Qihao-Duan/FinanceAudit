@@ -16,10 +16,29 @@ from financeaudit.core import config
 
 
 def structured_call(model: str, system: str, user: str, schema_name: str,
-                    schema: dict, timeout: int = 60) -> Optional[dict]:
-    """One Structured-Outputs call. Returns parsed dict or None (graceful)."""
+                    schema: dict, timeout: int = 60,
+                    max_attempts: int = 3) -> Optional[dict]:
+    """One Structured-Outputs call with transient-failure retries.
+
+    The gpt-5.6 preview family intermittently returns 401 under capacity
+    pressure (~25% of calls, observed 2026-07-18); 401/429/5xx/timeouts are
+    treated as transient and retried with backoff. Returns parsed dict or
+    None (graceful) after the last attempt."""
     if not config.llm_available():
         return None
+    import time
+    last_exc = None
+    for attempt in range(max_attempts):
+        if attempt:
+            time.sleep(2 * attempt)
+        out = _one_call(model, system, user, schema_name, schema, timeout)
+        if out is not None:
+            return out
+    return None
+
+
+def _one_call(model: str, system: str, user: str, schema_name: str,
+              schema: dict, timeout: int) -> Optional[dict]:
     try:
         from openai import OpenAI
         client = OpenAI()
