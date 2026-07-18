@@ -1,6 +1,7 @@
 """Parsers for the 19 Begleitdokumente (csv / xlsx / docx / pdf) -> side tables + doc_units."""
 from __future__ import annotations
 
+import csv
 import re
 from decimal import Decimal
 from pathlib import Path
@@ -224,6 +225,294 @@ CSV_TABLE_SCHEMAS = {
 CSV_TABLE_SCHEMAS.update({
     table: _csv_schema(spec[1]) for table, spec in OPTIONAL_CSV_SPECS.items()
 })
+
+
+# ------------------------------------------------- Finals control-file adapters
+#
+# The finals dossier (Beispiel Dämmstoffe GmbH) ships several HIGH-VALUE control
+# files under RENAMED names, in ISO-8859/cp1252 encoding, and one of them carries
+# an unquoted internal ';' inside a free-text column (BEMERKUNG). The builtin
+# CSV_SPECS above match fixed practice filenames, so these files were previously
+# UNPARSED (parse_coverage=failed). The deterministic adapters below register every
+# row into the source registry, emit typed tables + a source_manifest entry, and
+# feed the column profiler — mirroring the _parse_csv_table contract. They are
+# OPTIONAL in the OPTIONAL_CSV_SPECS sense: absent in the practice dossier is normal
+# (empty schema'd table, no 'failed' manifest row), present in finals is parsed.
+#
+# Filename matching is prefix-tolerant (normalized: lower-cased, umlauts folded,
+# '-'/'_' unified) so a renamed variant like 'Aenderungsprotokoll_2025_erweitert.csv'
+# still binds. Each spec is parsed POSITIONALLY against a fixed column layout; the
+# header row is validated by name (drift -> recorded parser error, never a crash).
+#
+# Column types: text | date | amount | int (same vocabulary as CSV_SPECS). Amount
+# columns expand to <tgt>, <tgt>_raw, <tgt>_dec exactly like _parse_csv_table.
+
+# base names present in THIS dossier (added to KNOWN_BEGLEIT_FILES so the LLM
+# auto-adapter / unrecognized-file lister skip them); variant suffixes are also
+# tolerated at parse time via prefix matching + a runtime KNOWN-set update.
+FINALS_KNOWN_FILES = {
+    "Aenderungsprotokoll_2025.csv",
+    "Stammdatenaenderungen_Debitoren_2025.csv",
+    "Stammdaten-Statusliste_2025.csv",
+    "Rechtsfaelle_Insolvenzen.csv",
+    "Kontenplan-Mapping.csv",
+}
+
+FINALS_CSV_SPECS = [
+    {
+        # HIGH VALUE: changes to already-FINALIZED (festgeschrieben) GL entries.
+        # Every BEMERKUNG holds an unquoted internal ';' -> free_index cap-split.
+        "table": "change_protocol",
+        "match": ("aenderungsprotokoll",),
+        "ncols": 9,
+        "free_index": 7,  # BEMERKUNG (0-based); 1 fixed column (FESTSCHREIBUNG) to its right
+        "cols": [
+            ("entry_no", "BUCHUNGSNUMMER", "text"),
+            ("account", "SACHKONTO", "text"),
+            ("posting_date", "BUCHUNGSDATUM", "date"),
+            ("change_type", "AENDERUNGSART", "text"),
+            ("user_id", "BENUTZER", "text"),
+            ("changed_date", "GEAENDERT_AM", "date"),
+            ("changed_time", "GEAENDERT_UM", "text"),
+            ("note", "BEMERKUNG", "text"),
+            ("finalized_before_change", "FESTSCHREIBUNG_VOR_AENDERUNG", "text"),
+        ],
+        "scope": "change protocol of already-finalized GL entries FY2025 "
+                 "(Stornobuchung/Generalstorno etc.); finalized_before_change='Ja' marks a "
+                 "change to a festgeschriebene entry — high-value immutability control",
+    },
+    {
+        # Appends to the canonical masterdata_changes shape (kind='Debitor').
+        "table": "masterdata_changes",
+        "append": True,
+        "match": ("stammdatenaenderungen_debitoren",),
+        "ncols": 9,
+        "free_index": None,
+        "const": {"kind": "Debitor"},
+        "cols": [
+            ("change_date", "DATUM", "date"),
+            ("account", "DEBITOR", "text"),
+            ("name", "DEBITORNAME", "text"),
+            ("field", "FELD", "text"),
+            ("old_value", "WERT_ALT", "text"),
+            ("new_value", "WERT_NEU", "text"),
+            ("changed_by", "GEAENDERT_VON", "text"),
+            ("approved_by", "GENEHMIGT_VON", "text"),
+            ("approved", "GENEHMIGT", "text"),
+        ],
+        "scope": "debtor (Debitoren) master-data changes 2025 as provided; appended to "
+                 "masterdata_changes with kind='Debitor'",
+    },
+    {
+        "table": "masterdata_status",
+        "match": ("stammdaten_statusliste",),
+        "ncols": 7,
+        "free_index": None,
+        "cols": [
+            ("account", "KONTONUMMER", "text"),
+            ("kind", "ART", "text"),
+            ("name", "NAME", "text"),
+            ("status", "STATUS", "text"),
+            ("blocked_date", "GESPERRT_AM", "date"),
+            ("deleted_date", "GELOESCHT_AM", "date"),
+            ("cpd_flag", "CPD_KENNZEICHEN", "text"),
+        ],
+        "scope": "debtor/creditor master-data status list 2025 "
+                 "(Aktiv/Gesperrt/Geloescht, block & delete dates, CPD flag)",
+    },
+    {
+        "table": "legal_cases",
+        "match": ("rechtsfaelle_insolvenzen", "rechtsfaelle"),
+        "ncols": 6,
+        "free_index": None,
+        "cols": [
+            ("account", "DEBITOR", "text"),
+            ("name", "DEBITORNAME", "text"),
+            ("date", "DATUM", "date"),
+            ("status", "STATUS", "text"),
+            ("claim_amount", "FORDERUNG_EUR", "amount"),
+            ("note", "BEMERKUNG", "text"),
+        ],
+        "scope": "legal cases / insolvencies against debtors as provided (incl. a "
+                 "monitoring statement row asserting no open proceedings)",
+    },
+    {
+        # Large reference table (ISO-8859): journal-format account code -> main account.
+        "table": "account_map",
+        "match": ("kontenplan_mapping", "kontenplan"),
+        "ncols": 4,
+        "free_index": None,
+        "cols": [
+            ("journal_account", "KONTO_JOURNALFORMAT", "text"),
+            ("main_account", "HAUPTKONTO", "text"),
+            ("account_name", "KONTOBEZEICHNUNG", "text"),
+            ("n_postings", "ANZAHL_BUCHUNGEN", "int"),
+        ],
+        "scope": "chart-of-accounts mapping: journal-format account code -> 6-digit main "
+                 "account with per-code posting counts (reference/lookup table)",
+    },
+]
+
+# Empty-table schemas (mirrors CSV_TABLE_SCHEMAS) so an ABSENT finals file still
+# yields a 0-row DuckDB table WITH its columns (no Binder Error). The append spec
+# (masterdata_changes) reuses the canonical schema already registered above.
+CSV_TABLE_SCHEMAS.update({
+    s["table"]: _csv_schema(s["cols"], extra=tuple(s.get("const", {}).keys()))
+    for s in FINALS_CSV_SPECS if not s.get("append")
+})
+
+
+def _finals_norm(name: str) -> str:
+    """Lower-case, fold German umlauts/ß, unify '-'/'_' — for tolerant prefix matching."""
+    s = name.lower()
+    for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        s = s.replace(a, b)
+    return s.replace("-", "_")
+
+
+def _read_finals_csv(path: Path):
+    """Read a ;-separated finals CSV, trying cp1252 -> latin-1 (never fails, covers
+    ISO-8859) -> utf-8-sig. Returns (encoding_used, [(line_no_1based, raw_line), ...])."""
+    for enc in ("cp1252", "latin-1", "utf-8-sig"):
+        try:
+            with open(path, encoding=enc, newline="") as fh:
+                text = fh.read()
+            used = enc
+            break
+        except UnicodeDecodeError:
+            continue
+    else:  # pragma: no cover - latin-1 above never raises
+        with open(path, encoding="latin-1", newline="") as fh:
+            text = fh.read()
+        used = "latin-1"
+    return used, list(enumerate(text.splitlines(), start=1))
+
+
+def _split_finals_row(raw: str, ncols: int, free_index):
+    """Split a ;-line into exactly `ncols` fields.
+
+    Well-formed rows (<= ncols separators) are parsed with csv.reader so any quoted
+    fields are honored. When `free_index` is set and the row OVERFLOWS (an unquoted
+    internal ';' inside the free-text column at `free_index`), the fixed columns on
+    the left and right are taken from the ends and everything in between is rejoined
+    — 'parse from the right / cap the split' (Aenderungsprotokoll BEMERKUNG)."""
+    parts = raw.split(";")
+    if free_index is None or len(parts) <= ncols:
+        fields = next(csv.reader([raw], delimiter=";", quotechar='"'))
+        if len(fields) < ncols:
+            fields = fields + [""] * (ncols - len(fields))
+        return fields
+    right = ncols - 1 - free_index
+    left = parts[:free_index]
+    tail = parts[len(parts) - right:] if right else []
+    middle = ";".join(parts[free_index:len(parts) - right])
+    return left + [middle] + tail
+
+
+def _find_finals_file(data_dir: Path, patterns):
+    """Return the first .csv under Begleitdokumente whose normalized stem starts with
+    any of `patterns` (already normalized), else None."""
+    beg = data_dir / BEGLEIT
+    if not beg.is_dir():
+        return None
+    for p in sorted(beg.iterdir()):
+        if not p.is_file() or p.name.startswith(".") or p.suffix.lower() != ".csv":
+            continue
+        stem = _finals_norm(p.stem)
+        if any(stem.startswith(m) for m in patterns):
+            return p
+    return None
+
+
+def _parse_finals_spec(data_dir, spec, registry, manifest):
+    """Parse one finals control file per `spec`. Returns (rows, feed_or_None, claimed_name_or_None).
+    rows == [] with claimed_name None when no matching file is present (absence is normal)."""
+    path = _find_finals_file(data_dir, spec["match"])
+    if path is None:
+        return [], None, None
+    rel = f"{BEGLEIT}/{path.name}"
+    table = spec["table"]
+    ncols, free_index, cols = spec["ncols"], spec.get("free_index"), spec["cols"]
+    const = spec.get("const", {})
+    file_hash = sha256_file(path)
+    enc, lines = _read_finals_csv(path)
+    errors = []
+    if enc != _common.ENCODING:
+        errors.append(f"{rel}: decoded as {enc} (cp1252 failed) — non-default encoding")
+    data_lines = [(ln, raw) for ln, raw in lines[1:] if raw.strip()]
+    # header validation (positional parse; names only checked to surface layout drift)
+    if lines:
+        header = _split_finals_row(lines[0][1], ncols, free_index)
+        for i, (_tgt, src, _typ) in enumerate(cols):
+            got = header[i].strip() if i < len(header) else ""
+            if got != src:
+                errors.append(f"{rel}: column {i} header {got!r} != expected {src!r}")
+    # per-amount-column decimal-convention inference (ROBUSTNESS S7)
+    split_cache = [_split_finals_row(raw, ncols, free_index) for _, raw in data_lines]
+    amount_conv = {}
+    for i, (tgt, _src, typ) in enumerate(cols):
+        if typ == "amount":
+            conv = detect_decimal_convention(
+                [f[i] if i < len(f) else "" for f in split_cache])
+            amount_conv[tgt] = conv
+            if conv != "de":
+                errors.append(f"{rel}: column {tgt!r} parsed as dot-decimal "
+                              "(non-German convention detected) — flagged for review")
+    rows = []
+    for (ln, raw), fields in zip(data_lines, split_cache):
+        sid = registry.register(
+            file=rel, file_hash=file_hash, kind="cell_row",
+            locator=f"{rel}#row:{ln}", content=raw,
+            display_locator=f"{rel}:row {ln}", row_no=ln)
+        rec = {"row_id": ln, "source_id": sid}
+        rec.update(const)
+        for i, (tgt, _src, typ) in enumerate(cols):
+            v = fields[i] if i < len(fields) else ""
+            try:
+                if typ == "date":
+                    rec[tgt] = parse_german_date(v)
+                elif typ == "amount":
+                    val, raw_a, canon = parse_amount_conv(v, amount_conv.get(tgt, "de"))
+                    rec[tgt] = val
+                    rec[tgt + "_raw"] = raw_a
+                    rec[tgt + "_dec"] = canon
+                elif typ == "int":
+                    rec[tgt] = int(v) if v.strip() else None
+                else:
+                    rec[tgt] = v.strip() or None
+            except Exception as exc:
+                errors.append(f"{rel}:row {ln}:{tgt}: {exc}")
+                rec[tgt] = None
+        rows.append(rec)
+    manifest.add(file=rel, file_hash=file_hash, size_bytes=path.stat().st_size,
+                 expected_units=len(data_lines), parsed_units=len(rows),
+                 parser_errors=errors, population_scope=spec["scope"])
+    # keep the LLM auto-adapter / unrecognized-lister from re-processing this file
+    KNOWN_BEGLEIT_FILES.add(path.name)
+    feed = (rel, table, [src for _, src, _ in cols], split_cache)
+    return rows, feed, path.name
+
+
+def parse_finals_sidecars(data_dir, registry, manifest):
+    """Parse all finals control files. Returns (new_tables, append_rows, feed_list, claimed).
+
+    new_tables: {table: rows} for non-append specs (key always present, [] if absent).
+    append_rows: {table: rows} for append specs (only when a file matched).
+    feed_list: profiler feed tuples for matched files.
+    claimed: set of consumed filenames."""
+    new_tables, append_rows, feed_list, claimed = {}, {}, [], set()
+    for spec in FINALS_CSV_SPECS:
+        rows, feed, name = _parse_finals_spec(data_dir, spec, registry, manifest)
+        if feed is not None:
+            feed_list.append(feed)
+        if name is not None:
+            claimed.add(name)
+        if spec.get("append"):
+            if rows:
+                append_rows.setdefault(spec["table"], []).extend(rows)
+        else:
+            new_tables[spec["table"]] = rows
+    return new_tables, append_rows, feed_list, claimed
 
 
 def _parse_csv_table(data_dir, table, spec, registry, manifest):
@@ -647,6 +936,13 @@ def parse_sidecars(data_dir: Path, registry: SourceRegistry, manifest: ManifestB
     xlsx_tables, xlsx_feed = parse_xlsx_files(data_dir, registry, manifest)
     tables.update(xlsx_tables)
     profile_feed.extend(xlsx_feed)
+    # Finals control-file adapters (renamed / ISO-8859 / semicolon-in-BEMERKUNG files).
+    finals_new, finals_append, finals_feed, finals_claimed = parse_finals_sidecars(
+        data_dir, registry, manifest)
+    tables.update(finals_new)
+    for tname, trows in finals_append.items():
+        tables.setdefault(tname, []).extend(trows)
+    profile_feed.extend(finals_feed)
     doc_units = parse_doc_units(data_dir, registry, manifest)
     # Steuercodes: empty directory in the export
     st_dir = data_dir / "Steuercodes"
@@ -654,7 +950,7 @@ def parse_sidecars(data_dir: Path, registry: SourceRegistry, manifest: ManifestB
         manifest.add(file="Steuercodes/", file_hash=None, size_bytes=0,
                      expected_units=0, parsed_units=0, parser_errors=[],
                      population_scope="empty directory in the export — no tax-code tables provided")
-    _list_unrecognized_begleit(data_dir, manifest)
+    _list_unrecognized_begleit(data_dir, manifest, finals_claimed)
     return tables, doc_units, profile_feed
 
 
@@ -662,6 +958,7 @@ def parse_sidecars(data_dir: Path, registry: SourceRegistry, manifest: ManifestB
 KNOWN_BEGLEIT_FILES = (
     {fname for fname, _ in CSV_SPECS.values()}
     | {fname for fname, _ in OPTIONAL_CSV_SPECS.values()}
+    | set(FINALS_KNOWN_FILES)
     | {"Berechtigungsauswertung_2025.xlsx", "OP-Liste_Debitoren_2025.xlsx",
        "OP-Liste_Kreditoren_2025.xlsx", "Saldenliste_2025.xlsx",
        "Saldenliste_2024_Vorjahr.xlsx", "Abstimmung_Nebenbuecher_HB_2025.xlsx"}
@@ -671,7 +968,7 @@ KNOWN_BEGLEIT_FILES = (
 )
 
 
-def _list_unrecognized_begleit(data_dir: Path, manifest: ManifestBuilder):
+def _list_unrecognized_begleit(data_dir: Path, manifest: ManifestBuilder, claimed=()):
     """ROBUSTNESS (S5 extra unknown file / S4 renamed file): surface any Begleitdokument
     that no adapter maps to as an explicit 'failed'-coverage manifest entry, so a finals
     file that was renamed or added is VISIBLE (coverage gap) rather than silently ignored —
@@ -679,8 +976,10 @@ def _list_unrecognized_begleit(data_dir: Path, manifest: ManifestBuilder):
     beg = data_dir / BEGLEIT
     if not beg.is_dir():
         return
+    claimed = set(claimed)
     for p in sorted(beg.iterdir()):
-        if not p.is_file() or p.name.startswith(".") or p.name in KNOWN_BEGLEIT_FILES:
+        if (not p.is_file() or p.name.startswith(".")
+                or p.name in KNOWN_BEGLEIT_FILES or p.name in claimed):
             continue
         manifest.add(file=f"{BEGLEIT}/{p.name}", file_hash=sha256_file(p),
                      size_bytes=p.stat().st_size, expected_units=None, parsed_units=0,
