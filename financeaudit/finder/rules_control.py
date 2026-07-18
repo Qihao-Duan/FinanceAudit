@@ -564,6 +564,36 @@ def rule_r07_bank_change_timing(con: duckdb.DuckDBPyConnection, thresholds: Dict
             [account, change_date, change_date + timedelta(days=window)],
         ).fetchall()
         if not pays:
+            # A bank-details change is an approval-relevant event per the audit
+            # plan even without subsequent payments in the window — emit a
+            # low-tier informational candidate so the event is never silent
+            # (blind-spot finding, verification round 2026-07-18). Self-approved
+            # changes escalate to medium.
+            self_approved = bool(changed_by) and changed_by == approved_by
+            out.append(_candidate(
+                "R07", "bank_change_no_payment_window", "control", "rule_based",
+                "medium" if self_approved else "low",
+                f"vendor:{account}",
+                f"{name or vendor_names.get(account, account)} ({account})",
+                [], [sid],
+                {
+                    "change_date": str(change_date), "field": field,
+                    "changed_by": changed_by, "approved_by": approved_by,
+                    "self_approved": self_approved,
+                    "window_days": window, "n_payments": 0,
+                    "note": ("bank-details master-data change with no payments "
+                             "inside the observation window; recorded because "
+                             "the audit plan marks bank-data changes as "
+                             "approval-relevant"),
+                },
+                {"population_size": int(n_pop), "rule_hits": 0,
+                 "peers_with_expected_evidence": 0},
+                (f"A bank-details master-data change for vendor {account} dated "
+                 f"{change_date} (changed by {changed_by}, approved by "
+                 f"{approved_by}) had no subsequent payments within {window} "
+                 f"days; the change itself is an approval-relevant event per "
+                 f"the audit planning paper."),
+            ))
             continue
         total = round(sum(p[2] for p in pays), 2)
         first_gap = (pays[0][1] - change_date).days

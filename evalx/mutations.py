@@ -80,6 +80,8 @@ from pathlib import Path
 
 import openpyxl
 
+from evalx.mutation_suite import dossier_hash
+
 ENC = "cp1252"
 GL_REL = "Sachkonten/Sachkontobuchungen.txt"
 VT_REL = "Kreditoren/Lieferantenbuchungen.txt"
@@ -208,12 +210,22 @@ def build_variant(data_dir: Path, out_dir: Path, name: str):
         "variant": name,
         "llm_used": False,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "base_dossier_hash": dossier_hash(data_dir),
+        "generator": "evalx.mutations",
+        "generator_version": "2.0",
         "vendor": VENDOR, "invoice": INVOICE, "amount_eur": float(AMOUNT),
         "injected_gl_entry_ids": sorted(spec["entries"]),
         "injected_rows": {"gl": len(spec["gl_lines"]),
                           "vendor_tx": len(spec["vt_lines"])},
         "op_saldo_200100": float(spec["op_saldo"]),
         "expected_detection": spec["expected_detection"],
+        "innocent_predicate": (
+            "offsetting credit note / vendor refund exists"
+            if name == "repair" else None
+        ),
+        "affected_files": [GL_REL, VT_REL] + (
+            [OP_REL] if spec["op_saldo"] != BASE_OP_SALDO else []
+        ),
         "known_residuals": [
             "Exportprotokoll row counts / SHA-256 for the two txt files no "
             "longer match (intentional; see module docstring)",

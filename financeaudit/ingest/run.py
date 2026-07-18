@@ -59,6 +59,10 @@ DATE_COLS = {
     "approval_log": ["created_date", "approval_date"],
     "masterdata_changes": ["change_date"],
     "op_debitors_items": ["doc_date"],
+    "batch_approvals": ["approval_date"],
+    "bank_payment_details": ["change_date", "payment_date"],
+    "accrual_schedule": ["closing_date", "service_date", "invoice_date"],
+    "technical_assessments": ["assessment_date"],
 }
 INT_COLS = {
     "gl": ["line_no"], "approval_log": ["n_lines"],
@@ -66,6 +70,9 @@ INT_COLS = {
     "doc_units": ["page_index", "para_no"],
     "column_profiles": ["position", "n_unique"],
     "source_manifest": ["size_bytes", "expected_units", "parsed_units"],
+    "batch_approvals": ["payment_count"],
+    "technical_assessments": ["capacity_before", "capacity_after",
+                                "useful_life_extension_years"],
 }
 BOOL_COLS = {
     "permissions": ["can_post", "can_approve", "can_pay", "can_create_vendor",
@@ -84,6 +91,9 @@ DOUBLE_COLS = {
     "reconciliation": ["value"], "op_debitors_accounts": ["balance"],
     "op_creditors_accounts": ["balance"], "op_debitors_items": ["amount"],
     "column_profiles": ["null_rate"],
+    "batch_approvals": ["total_amount"],
+    "bank_payment_details": ["amount"],
+    "accrual_schedule": ["obligation_amount", "allocated_amount"],
 }
 
 

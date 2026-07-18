@@ -139,6 +139,50 @@ CSV_SPECS = {
         ("note", "BEMERKUNG", "text")]),
 }
 
+# Optional synthetic-test evidence. Absence is normal and does not create a
+# failed-coverage row; when present, rows enter the same source registry and
+# typed DuckDB contract as the official sidecars.
+OPTIONAL_CSV_SPECS = {
+    "batch_approvals": ("Batchfreigaben_Synthetisch.csv", [
+        ("batch_id", "BATCH_ID", "text"), ("approval_date", "DATUM", "date"),
+        ("vendor_account", "KREDITOR", "text"),
+        ("invoice_ref", "RECHNUNG", "text"),
+        ("payment_count", "TEILZAHLUNGEN", "int"),
+        ("total_amount", "GESAMT_EUR", "amount"),
+        ("creator", "ERSTELLER", "text"), ("approver", "FREIGEBER", "text"),
+        ("status", "STATUS", "text")]),
+    "bank_payment_details": ("Bankwechsel_Zahlungsdetails_Synthetisch.csv", [
+        ("change_id", "WECHSEL_ID", "text"),
+        ("change_date", "AENDERUNGSDATUM", "date"),
+        ("vendor_account", "KREDITOR", "text"),
+        ("old_iban", "ALTE_IBAN", "text"), ("new_iban", "NEUE_IBAN", "text"),
+        ("payment_date", "ZAHLUNGSDATUM", "date"),
+        ("payment_ref", "ZAHLUNGSREFERENZ", "text"),
+        ("invoice_ref", "RECHNUNG", "text"), ("entry_id", "ENTRY_ID", "text"),
+        ("amount", "BETRAG_EUR", "amount"), ("used_iban", "VERWENDETE_IBAN", "text")]),
+    "accrual_schedule": ("Abgrenzungsnachweis_Synthetisch.csv", [
+        ("schedule_id", "NACHWEIS_ID", "text"),
+        ("closing_date", "ABSCHLUSSDATUM", "date"),
+        ("accrual_entry_id", "ACCRUAL_ENTRY_ID", "text"),
+        ("accrual_ref", "ACCRUAL_REFERENZ", "text"),
+        ("invoice_ref", "RECHNUNG", "text"), ("vendor_account", "KREDITOR", "text"),
+        ("service_date", "LEISTUNGSDATUM", "date"),
+        ("invoice_date", "RECHNUNGSDATUM", "date"),
+        ("obligation_amount", "VERPFLICHTUNG_EUR", "amount"),
+        ("allocated_amount", "ZUGEORDNET_EUR", "amount"),
+        ("status", "STATUS", "text"), ("description", "BESCHREIBUNG", "text")]),
+    "technical_assessments": ("Technische_Beurteilungen_Synthetisch.csv", [
+        ("assessment_id", "BEURTEILUNG_ID", "text"),
+        ("assessment_date", "DATUM", "date"), ("asset_id", "ANLAGE", "text"),
+        ("invoice_ref", "RECHNUNG", "text"), ("description", "BEZEICHNUNG", "text"),
+        ("assessor", "TECHNISCHER_BEURTEILER", "text"),
+        ("assessment", "BEFUND", "text"),
+        ("capacity_before", "KAPAZITAET_VORHER", "int"),
+        ("capacity_after", "KAPAZITAET_NACHHER", "int"),
+        ("useful_life_extension_years", "NUTZUNGSDAUER_PLUS_JAHRE", "int"),
+        ("approver", "FREIGEBER", "text"), ("status", "STATUS", "text")]),
+}
+
 CSV_SCOPES = {
     "goods_receipts": "material/logistics goods receipts only — services are NOT covered by this list",
     "goods_issues": "delivery-related goods issues, 1:1 with FY2025 sales invoices; credit notes legitimately have no issue",
@@ -149,6 +193,10 @@ CSV_SCOPES = {
     "masterdata_changes": "master data changes 2025 as provided",
     "credit_limits": "customer credit limits as of 31.12.2025",
     "shareholders": "shareholders and affiliated companies incl. section header lines (see is_section_header)",
+    "batch_approvals": "synthetic test fixture: aggregate authorization for component payments",
+    "bank_payment_details": "synthetic test fixture: bank-master change linked to payment destination",
+    "accrual_schedule": "synthetic test fixture: year-end accrual allocation to subsequent invoices",
+    "technical_assessments": "synthetic test fixture: pre-posting technical support for capitalization",
 }
 
 
@@ -173,6 +221,9 @@ CSV_TABLE_SCHEMAS = {
                        extra=(("section", "is_section_header") if table == "shareholders" else ()))
     for table, spec in CSV_SPECS.items()
 }
+CSV_TABLE_SCHEMAS.update({
+    table: _csv_schema(spec[1]) for table, spec in OPTIONAL_CSV_SPECS.items()
+})
 
 
 def _parse_csv_table(data_dir, table, spec, registry, manifest):
@@ -569,6 +620,14 @@ def parse_sidecars(data_dir: Path, registry: SourceRegistry, manifest: ManifestB
         rows, feed = _parse_csv_table(data_dir, table, spec, registry, manifest)
         tables[table] = rows
         profile_feed.append((feed[0], table, feed[1], feed[2]))
+    for table, spec in OPTIONAL_CSV_SPECS.items():
+        fname, _ = spec
+        if (data_dir / BEGLEIT / fname).exists():
+            rows, feed = _parse_csv_table(data_dir, table, spec, registry, manifest)
+            profile_feed.append((feed[0], table, feed[1], feed[2]))
+        else:
+            rows = []
+        tables[table] = rows
     xlsx_tables, xlsx_feed = parse_xlsx_files(data_dir, registry, manifest)
     tables.update(xlsx_tables)
     profile_feed.extend(xlsx_feed)
@@ -586,6 +645,7 @@ def parse_sidecars(data_dir: Path, registry: SourceRegistry, manifest: ManifestB
 # Files this ingest knows how to parse (used only to surface UNRECOGNIZED extras).
 KNOWN_BEGLEIT_FILES = (
     {fname for fname, _ in CSV_SPECS.values()}
+    | {fname for fname, _ in OPTIONAL_CSV_SPECS.values()}
     | {"Berechtigungsauswertung_2025.xlsx", "OP-Liste_Debitoren_2025.xlsx",
        "OP-Liste_Kreditoren_2025.xlsx", "Saldenliste_2025.xlsx",
        "Saldenliste_2024_Vorjahr.xlsx", "Abstimmung_Nebenbuecher_HB_2025.xlsx"}
