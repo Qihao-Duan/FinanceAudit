@@ -41,8 +41,11 @@ def banner(name: str, extra: str = "") -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--data", default="data/practice")
-    ap.add_argument("--build", default="build")
+    # Honor the same env vars the stage modules use (README documents them) —
+    # explicit flags still win. Prevents the "env set but orchestrator ran
+    # data/practice anyway" footgun (finals run 2026-07-18).
+    ap.add_argument("--data", default=os.environ.get("FA_DATA_DIR", "data/practice"))
+    ap.add_argument("--build", default=os.environ.get("FA_BUILD_DIR", "build"))
     ap.add_argument("--skip-eval", action="store_true",
                     help="run the six pipeline stages but not evalx")
     args = ap.parse_args()
