@@ -92,7 +92,10 @@ def enrich(build_dir: Path) -> int:
         out = structured_call(
             model, SYSTEM,
             json.dumps(payload, ensure_ascii=False, default=str),
-            "finding_narrative", SCHEMA)
+            "finding_narrative", SCHEMA,
+            context={"finding_id": f.get("finding_id"),
+                     "disposition": f.get("disposition"),
+                     "prompt_version": NARRATIVE_PROMPT_VERSION})
         stats["calls"] += 1
         if out is None:
             stats["failed"] += 1

@@ -19,7 +19,8 @@ from financeaudit.llm.calllog import log_event
 
 def structured_call(model: str, system: str, user: str, schema_name: str,
                     schema: dict, timeout: int = 60,
-                    max_attempts: int = 3) -> Optional[dict]:
+                    max_attempts: int = 3,
+                    context: Optional[dict] = None) -> Optional[dict]:
     """One Structured-Outputs call with transient-failure retries.
 
     The gpt-5.6 preview family intermittently returns 401 under capacity
@@ -32,6 +33,7 @@ def structured_call(model: str, system: str, user: str, schema_name: str,
     call_id = f"{os.getpid()}-{int(time.time()*1000)}"
     log_event("llm_request", {"call_id": call_id, "model": model,
                                "schema_name": schema_name,
+                               "context": context or {},
                                "system": system, "user": user})
     for attempt in range(max_attempts):
         if attempt:
@@ -99,18 +101,18 @@ def extract_digit_tokens(value: Any, acc: Optional[set] = None) -> set:
     elif value is not None:
         for tok in re.findall(r"\d[\d.,]{2,}", str(value)):
             t = tok.strip(".,")
-            # canonical forms: full digit string AND integer part, so that
-            # "248,000.00" == "248,000" == "248000" while any genuinely new
-            # number still fails the subset check.
+            # Canonical forms so that "248,000.00" == "248,000" == "248000"
+            # while any genuinely new number still fails the subset check.
+            # The LAST separator is treated as the decimal separator; earlier
+            # separators are grouping. Every candidate obeys the >=3-digit
+            # rule (fixes the v1 bug where "9,780.00".split(",")[0] produced
+            # a bare "9" fragment and mass-false-rejected reformatted amounts).
             full = t.replace(",", "").replace(".", "")
-            if len(full) < 3:
-                # punctuation-adjacency artifacts ("MV-U05," -> "05"); tokens
-                # with <3 digits carry no amount information — skip both sides.
-                continue
-            acc.add(full)
-            for sep in (".", ","):
-                if sep in t:
-                    intpart = t.split(sep)[0].replace(",", "").replace(".", "")
-                    if intpart:
-                        acc.add(intpart)
+            if len(full) >= 3:
+                acc.add(full)
+            last = max(t.rfind("."), t.rfind(","))
+            if last > 0:
+                intpart = t[:last].replace(",", "").replace(".", "")
+                if len(intpart) >= 3:
+                    acc.add(intpart)
     return acc
