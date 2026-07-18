@@ -63,6 +63,9 @@ DATE_COLS = {
     "bank_payment_details": ["change_date", "payment_date"],
     "accrual_schedule": ["closing_date", "service_date", "invoice_date"],
     "technical_assessments": ["assessment_date"],
+    "change_protocol": ["posting_date", "changed_date"],
+    "masterdata_status": ["blocked_date", "deleted_date"],
+    "legal_cases": ["date"],
 }
 INT_COLS = {
     "gl": ["line_no"], "approval_log": ["n_lines"],
@@ -73,6 +76,7 @@ INT_COLS = {
     "batch_approvals": ["payment_count"],
     "technical_assessments": ["capacity_before", "capacity_after",
                                 "useful_life_extension_years"],
+    "account_map": ["n_postings"],
 }
 BOOL_COLS = {
     "permissions": ["can_post", "can_approve", "can_pay", "can_create_vendor",
@@ -94,6 +98,7 @@ DOUBLE_COLS = {
     "batch_approvals": ["total_amount"],
     "bank_payment_details": ["amount"],
     "accrual_schedule": ["obligation_amount", "allocated_amount"],
+    "legal_cases": ["claim_amount"],
 }
 
 
