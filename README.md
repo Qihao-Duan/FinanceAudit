@@ -2,7 +2,7 @@
 
 **An auditor-facing agent that finds layered fraud in a GDPdU accounting dossier and proves every claim against the exact document, row, page and passage it rests on.**
 
-> Cortea track — *"Follow the money. Find the fraud. Prove it."* · {Tech: Europe} × Almedia "Summer Lock-In" Hackathon, Berlin, 2026-07-18/19.
+> *Follow the money. Find the fraud. Prove it.*
 
 FinanceAudit ingests a ~20-file German/English company dossier (Microsoft Dynamics 365 GDPdU/GoBD export plus its accompanying PDFs, DOCX, CSV and XLSX), and surfaces both surface-level inconsistencies and deep manipulations that only appear when documents are cross-linked. Its guiding principle is **"no number without a source"**: every asserted euro amount is recomputed in code from operands that each carry a resolvable citation, and every finding links back to a highlighted cell or PDF passage in an interactive evidence-card UI. The architecture deliberately splits the work — **deterministic code computes and quantifies; the LLM only maps semantics, adjudicates within a narrowed candidate set, and narrates** — so that no arithmetic and no accusation ever originates from a language model.
 
@@ -176,7 +176,7 @@ FA_BUILD_DIR=build_finals FA_DATA_DIR=data/finals ./scripts/serve_ui.sh
 
 ## Results (practice-dossier regression)
 
-The numbers below are **local, reproducible regression results on the practice dossier only** (`build/eval_report.json`, generated with `llm_used: false` — i.e. the deterministic path, no API key at build time). They are *not* a claim about performance on the unseen jury dossier, and no external-paper benchmark number is reported as a product metric.
+The numbers below are **local, reproducible regression results on the practice dossier only** (`build/eval_report.json`, generated with `llm_used: false` — i.e. the deterministic path, no API key at build time). They are *not* a claim about performance on an unseen dossier, and no external-paper benchmark number is reported as a product metric.
 
 | Metric | Result |
 |---|---|
@@ -193,7 +193,7 @@ Reproduce with `python3 scripts/run_pipeline.py` (which ends with the `EVAL` sta
 
 ## OpenAI usage
 
-The mandatory partner technology is **OpenAI**, used only where language understanding — not computation — is required, always through **Structured Outputs (`json_schema`, `strict`)**:
+The LLM layer uses **OpenAI**, only where language understanding — not computation — is required, always through **Structured Outputs (`json_schema`, `strict`)**:
 
 - **Mechanism classification & assertion decomposition** (claims stage): map a candidate cluster to a fraud scheme within a *closed set* and split a finding into atomic, typed claims.
 - **Defense narration** (defender stage): phrase the innocence-predicate results; the retrieval itself is deterministic joins.
@@ -244,8 +244,6 @@ The dossiers under `data/` (practice **and** finals), API keys, caches and model
 
 - [`docs/PLAN.md`](docs/PLAN.md) — full battle plan (architecture rationale, rule catalog, eval methodology, references).
 - [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — frozen inter-stage contracts (paths, DuckDB schema, `finding.json`).
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — deep technical documentation for jury evaluation.
-- [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — the timed 2-minute video script.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — deep technical documentation.
+- [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — a timed walkthrough script for a short demo.
 - **Verification log:** [`BUILD_LOG.md`](BUILD_LOG.md) records each milestone, the cross-module fixes behind the current eval, and the from-zero (fresh clone + venv) reproduction test.
-
-> **Rules re-verification (per PLAN §1.1):** _[TO FILL after the final Discord announcement — submission deadline, partner-technology requirement and deliverable format re-checked at YYYY-MM-DD HH:MM CEST.]_
