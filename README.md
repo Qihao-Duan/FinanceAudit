@@ -99,7 +99,7 @@ no restart. (`--skip-eval` because the regression labels only apply to the pract
 
 Given a dossier, the pipeline:
 
-1. **Ingests and profiles** every file into a typed DuckDB database, assigning each row and document unit an immutable, hash-based `source_id`, and profiling every column to infer its *actual* semantic role (never trusting a declared column name blindly — see the [semantic-aliasing story](docs/ARCHITECTURE.md#the-p0-semantic-aliasing-story)).
+1. **Ingests and profiles** every file into a typed DuckDB database, assigning each row and document unit an immutable, hash-based `source_id`, and profiling every column to infer its *actual* semantic role (never trusting a declared column name blindly).
 2. **Runs 19 deterministic finder rules (R1–R19)** across three channels — control rules, statistical anomalies, relational-integrity checks — that emit neutral, clustered candidate signals.
 3. **Builds bidirectional evidence packs** (an entity-link graph plus a typed evidence-obligation table) so that both the incriminating and the exculpatory evidence for a cluster are on the table before any judgment is formed.
 4. **Decomposes each finding into atomic claims**, where every monetary claim is a formula over cited operands, **recomputed with Python `Decimal` at 0 tolerance** for ledger-to-ledger checks.
@@ -127,7 +127,7 @@ flowchart LR
     T -.-> V
 ```
 
-Each stage is an idempotent CLI writing a JSON/DuckDB artifact that the next stage consumes; the boundary contracts are frozen in [`docs/CONTRACTS.md`](docs/CONTRACTS.md). A deeper per-stage walkthrough — artifacts, the `finding.json` schema with a real example, the citation model, the semantic-aliasing showcase, property tests, defense predicates and eval methodology — is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Each stage is an idempotent CLI writing a JSON/DuckDB artifact that the next stage consumes. Each stage's input/output artifacts are listed in the repository map below.
 
 ## Quick start
 
@@ -153,7 +153,7 @@ python3 scripts/run_pipeline.py            # writes everything under build/
 python3 -m evalx.run
 ```
 
-`scripts/run_pipeline.py` prints a per-stage banner and timing and stops on any nonzero exit (an A-class property-test failure or an unresolvable-citation eval gate). Individual stages can also be run one at a time — see [`docs/CONTRACTS.md` §1](docs/CONTRACTS.md).
+`scripts/run_pipeline.py` prints a per-stage banner and timing and stops on any nonzero exit (an A-class property-test failure or an unresolvable-citation eval gate). Individual stages can also be run one at a time.
 
 ## Running on a NEW dossier
 
@@ -171,7 +171,7 @@ FA_BUILD_DIR=build_finals FA_DATA_DIR=data/finals ./scripts/serve_ui.sh
 
 - `FA_DATA_DIR` / `FA_BUILD_DIR` (read by `ui/server.py`) let the UI point at any dossier + build directory; `--data` / `--build` do the same for the pipeline.
 - **Or skip the env vars**: any `build*/` directory containing pipeline artifacts appears automatically in the UI's top-bar **workspace dropdown** (`GET /api/workspaces`, `POST /api/workspace`) — run the pipeline into `build_finals` and switch to it live, no server restart.
-- If the new dossier ships an audit-planning document, control thresholds (dual-approval limit, materiality, lock date) are **extracted with citations**; otherwise the finder falls back to configured defaults and finally to threshold-free, distribution-relative rules (see [`docs/ARCHITECTURE.md` §threshold fallback](docs/ARCHITECTURE.md#threshold-three-level-fallback)).
+- If the new dossier ships an audit-planning document, control thresholds (dual-approval limit, materiality, lock date) are **extracted with citations**; otherwise the finder falls back to configured defaults and finally to threshold-free, distribution-relative rules.
 - Structural differences (renamed/re-typed columns, missing tables) are absorbed by per-file schema adapters and the semantic-alias layer; declared-vs-observed conflicts are recorded in the manifest rather than silently trusted.
 
 ## Results (practice-dossier regression)
@@ -187,7 +187,7 @@ The numbers below are **local, reproducible regression results on the practice d
 | Dispositions | report **5** · observation **36** · rejected **0** · quarantine **0** (41 findings, 47 candidates) |
 | Ingest coverage | 28 / 28 files parsed complete, 32,940 / 32,940 units (100%) |
 | Ledger integrity | GL nets to €0.00; 8,391 entry groups all balanced; sub-ledger↔GL↔OP↔trial-balance tie-outs at 0 deviation; 8/8 SHA-256 export hashes match |
-| Pipeline runtime | ~5s warm; ~14s cold from a fresh clone + venv (verified end-to-end, `BUILD_LOG.md` M2) |
+| Pipeline runtime | ~5s warm; ~14s cold from a fresh clone + venv (verified end-to-end from a fresh clone + venv) |
 
 Reproduce with `python3 scripts/run_pipeline.py` (which ends with the `EVAL` stage) or `python3 -m evalx.run` against an existing `build/`.
 
@@ -231,9 +231,7 @@ financeaudit/
 ui/            FastAPI server (ui/server.py) + hand-written ES-module frontend (ui/web/) + fixtures
 evalx/         three-layer regression labels, metrics runner, paired mutations  → build/eval_report.json
 scripts/       run_pipeline.py (full pipeline), serve_ui.sh (UI launcher)
-docs/          PLAN.md (battle plan) · CONTRACTS.md (stage contracts) · ARCHITECTURE.md · DEMO_SCRIPT.md
 data/          dossiers (gitignored)          build/  pipeline outputs (gitignored)
-BUILD_LOG.md   milestone + reproduction log
 ```
 
 ## Data policy
@@ -242,8 +240,5 @@ The dossiers under `data/` (practice **and** finals), API keys, caches and model
 
 ## Documentation & verification log
 
-- [`docs/PLAN.md`](docs/PLAN.md) — full battle plan (architecture rationale, rule catalog, eval methodology, references).
-- [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — frozen inter-stage contracts (paths, DuckDB schema, `finding.json`).
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — deep technical documentation.
-- [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — a timed walkthrough script for a short demo.
-- **Verification log:** [`BUILD_LOG.md`](BUILD_LOG.md) records each milestone, the cross-module fixes behind the current eval, and the from-zero (fresh clone + venv) reproduction test.
+- [`README.md`](README.md) — this document: architecture overview, quick start, and design principles.
+- [`ui/README.md`](ui/README.md) — the evidence-card UI (endpoints, layout, running it).
