@@ -153,6 +153,22 @@ def main(argv=None):
 
     tables, gdpdu_feed = parse_gdpdu(data_dir, registry, manifest, declared_counts)
     side_tables, doc_units, sidecar_feed = parse_sidecars(data_dir, registry, manifest)
+
+    # --- auto-adapter: two-agent structuring for unrecognized tabular files.
+    # Mapper selects/creates a declarative spec, code executes it, an independent
+    # Verifier approves or the file stays unparsed. FA_AUTO_ADAPTER=0 disables.
+    import os as _os
+    auto_report = {"llm_used": False, "alerts": [], "files": []}
+    if _os.environ.get("FA_AUTO_ADAPTER") != "0":
+        from .auto_adapter import auto_structure, discover_unknown_files
+        from .sidecars import KNOWN_BEGLEIT_FILES
+        unknown_rels = discover_unknown_files(data_dir, KNOWN_BEGLEIT_FILES)
+        existing_cols = {n: sorted(r[0].keys()) for n, r in
+                         {**tables, **side_tables}.items() if r}
+        auto_tables, auto_report = auto_structure(
+            data_dir, unknown_rels, existing_cols, registry, manifest)
+        side_tables.update(auto_tables)
+
     tables.update(side_tables)
 
     cross = {
@@ -164,6 +180,26 @@ def main(argv=None):
         ),
     }
     profiles, conflicts = profile_all(gdpdu_feed, sidecar_feed, cross)
+
+    # Known-file confirmation mode (mapper confirms builtin adapter selection,
+    # verifier sanity-checks parse statistics; flags only, never authoritative).
+    if _os.environ.get("FA_AUTO_ADAPTER") != "0":
+        from .auto_adapter import confirm_known
+        by_ft = {}
+        for pr in profiles:
+            by_ft.setdefault((pr["file"], pr["table_name"]), []).append(pr)
+        known_summary, stats_summary = [], []
+        for (f_, t_), plist in sorted(by_ft.items()):
+            known_summary.append({"file": f_, "target_table": t_,
+                                  "headers": [x["raw_column"] for x in plist][:25]})
+            nulls = sorted(((x["raw_column"], x["null_rate"]) for x in plist
+                            if x.get("null_rate") is not None),
+                           key=lambda kv: -(kv[1] or 0))[:5]
+            stats_summary.append({
+                "file": f_, "table": t_, "n_rows": len(tables.get(t_, [])),
+                "worst_null_rates": nulls,
+                "conflicts": [x["conflict"] for x in plist if x.get("conflict")][:3]})
+        auto_report["alerts"] += confirm_known(known_summary, stats_summary)
 
     # ------------------------------------------------------------- write DuckDB
     db_path = out_dir / "audit.duckdb"
@@ -209,6 +245,12 @@ def main(argv=None):
             "constant — payment identification must use GL BUCHUNGSTYP=='Zahlung'.",
         ],
         "files": manifest.rows,
+        "auto_structuring": {
+            "llm_used": auto_report.get("llm_used", False),
+            "alerts": auto_report.get("alerts", []),
+            "files": [{k: f.get(k) for k in ("file", "status", "table", "n_rows")}
+                      for f in auto_report.get("files", [])],
+        },
         "tables": {name: len(rows) for name, rows in tables.items()},
         "registry_units": len(registry.rows),
         "doc_units": len(doc_units),
@@ -217,6 +259,8 @@ def main(argv=None):
         json.dumps(manifest_json, ensure_ascii=False, indent=2, default=str), "utf-8")
     (out_dir / "profiles.json").write_text(
         json.dumps(profiles, ensure_ascii=False, indent=2), "utf-8")
+    (out_dir / "auto_adapters.json").write_text(
+        json.dumps(auto_report, ensure_ascii=False, indent=2, default=str), "utf-8")
     prop = {"a_class": a_class, "b_class": b_class}
     (out_dir / "property_tests.json").write_text(
         json.dumps(prop, ensure_ascii=False, indent=2), "utf-8")
@@ -228,6 +272,8 @@ def main(argv=None):
     print(f"  table {'source_registry':26s} {len(registry.rows):>7,} rows")
     print(f"  table {'doc_units':26s} {len(doc_units):>7,} rows")
     print(f"  table {'column_profiles':26s} {len(profiles):>7,} rows")
+    for a in auto_report.get("alerts", []):
+        print(f"  [auto-adapter] {a}")
     print(f"  table {'source_manifest':26s} {len(manifest.rows):>7,} rows")
     print("[ingest] A-class property tests:")
     for t in a_class:

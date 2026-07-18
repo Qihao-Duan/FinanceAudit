@@ -160,6 +160,33 @@ def defend_threshold_splitting(con, finding, pack):
                     detail={"shared_collective_doc_refs": [r["doc_ref"] for r in rows],
                             "note": "the payments share one collective reference "
                                     "instead of separate invoice references"}))
+    # Client-provided batch-approval schedule (sidecar table batch_approvals):
+    # a documented batch authorization with an independent approver is the
+    # legitimate explanation for same-day sub-threshold payments.
+    try:
+        ba = q(con, "SELECT * FROM batch_approvals WHERE vendor_account=?", [acct])
+    except Exception:
+        ba = []
+    if ba:
+        approved = [r for r in ba
+                    if (r.get("approver") or "").strip()
+                    and str(r.get("status") or "").strip().lower().startswith(
+                        ("freigegeben", "approved", "genehmigt"))]
+        preds.append(_p(
+            "batch_payment_authorization",
+            "Does a documented batch-payment authorization with an independent "
+            "approver cover these payments?",
+            "found" if approved else "not_found",
+            [r["source_id"] for r in (approved or ba)][:10],
+            {"n_batch_rows": len(ba), "n_approved": len(approved),
+             "statuses": sorted({str(r.get("status")) for r in ba}),
+             "approvers": sorted({str(r.get("approver")) for r in ba})}))
+    else:
+        preds.append(_p("batch_payment_authorization",
+                        "Does a documented batch-payment authorization with an "
+                        "independent approver cover these payments?",
+                        "not_checkable",
+                        reason="no batch-approval schedule provided in the dossier"))
     preds.append(counterparty_normal_history(con, acct))
     return preds
 
@@ -177,6 +204,40 @@ def defend_cutoff(con, finding, pack):
     preds.append(journal_approval(con, [r["entry_id"] for r in accr]))
     pp = q(con, "SELECT * FROM purchase_invoices_2026")
     in_2025 = [r for r in pp if r["service_date"].year == 2025]
+    # Client-provided accrual schedule (sidecar table accrual_schedule): the
+    # strongest possible cutoff exculpation is a per-invoice allocation line
+    # showing the invoice is CONTAINED in the year-end accrual. A schedule row
+    # documenting NON-coverage corroborates the gap instead. Absent table ->
+    # not_checkable (no schedule provided).
+    try:
+        sched = q(con, "SELECT * FROM accrual_schedule")
+    except Exception:
+        sched = []
+    if sched:
+        covered = [r for r in sched
+                   if (r.get("allocated_amount") or 0) > 0
+                   and str(r.get("status") or "").strip().lower().startswith(
+                       ("enthalten", "included", "ja"))]
+        uncovered = [r for r in sched if r not in covered]
+        preds.append(_p(
+            "accrual_schedule_allocation",
+            "Does a client accrual schedule allocate the year-end accrual to the "
+            "post-period invoices item by item?",
+            "found" if covered and not uncovered else "not_found",
+            [r["source_id"] for r in (covered + uncovered)][:10],
+            {"n_schedule_rows": len(sched), "n_covered": len(covered),
+             "n_uncovered": len(uncovered),
+             "uncovered_invoices": [r.get("invoice_ref") for r in uncovered][:10],
+             "note": ("schedule documents per-invoice coverage" if covered and
+                      not uncovered else
+                      "schedule exists and explicitly documents non-coverage for "
+                      "the listed invoices")}))
+    else:
+        preds.append(_p("accrual_schedule_allocation",
+                        "Does a client accrual schedule allocate the year-end "
+                        "accrual to the post-period invoices item by item?",
+                        "not_checkable",
+                        reason="no accrual schedule provided in the dossier"))
     preds.append(_p("service_period_actually_next_year",
                     "Do the service dates actually belong to the following year "
                     "(which would make the January posting correct)?",
@@ -303,6 +364,32 @@ def defend_generic(con, finding, pack):
                         "Are the affected journal entries internally balanced?",
                         "found" if all(abs(b["s"]) < 0.005 for b in bal) else "not_found",
                         detail={"per_entry_sum": {b["entry_id"]: b["s"] for b in bal}}))
+    # Client-provided bank-change payment details (sidecar bank_payment_details):
+    # documents which IBAN subsequent payments actually used after a bank-data
+    # change — informational for bank-change packs.
+    accts = sorted({str(c.get("entity_key", "")).split(":")[-1]
+                    for c in pack.get("candidates", [])
+                    if str(c.get("entity_key", "")).startswith("vendor:")})
+    for _acct in accts:
+        try:
+            bp = q(con, "SELECT * FROM bank_payment_details WHERE vendor_account=?",
+                   [_acct])
+        except Exception:
+            bp = []
+        if bp:
+            preds.append(_p(
+                "bank_change_payment_details_documented",
+                "Do provided bank-change payment details document which account "
+                "subsequent payments used?",
+                "found",
+                [r["source_id"] for r in bp][:10],
+                {"n_rows": len(bp),
+                 "payments_to_new_iban": sum(
+                     1 for r in bp
+                     if r.get("used_iban") and r.get("used_iban") == r.get("new_iban")),
+                 "note": "documentation of the payment destination exists; whether "
+                         "the routing was authorized is assessed by the "
+                         "master-data approval predicates"}))
     if not preds:
         preds.append(_p("no_applicable_predicates",
                         "Are scheme-specific innocence predicates defined for this "

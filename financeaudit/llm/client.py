@@ -93,7 +93,10 @@ def extract_digit_tokens(value: Any, acc: Optional[set] = None) -> set:
     if acc is None:
         acc = set()
     if isinstance(value, dict):
-        for v in value.values():
+        for k, v in value.items():
+            # keys carry identifiers too (e.g. per_entry_sum maps entry-id ->
+            # amount); a model copying such an id must not be false-rejected.
+            extract_digit_tokens(k, acc)
             extract_digit_tokens(v, acc)
     elif isinstance(value, (list, tuple)):
         for v in value:

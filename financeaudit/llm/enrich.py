@@ -86,6 +86,11 @@ def enrich(build_dir: Path) -> int:
     stats = {"calls": 0, "accepted": 0, "rejected_numbers": 0,
              "rejected_wording": 0, "failed": 0}
     for f in findings:
+        # re-enrichment hygiene: never leave a stale narrative from a previous
+        # prompt version on a finding whose new draft gets rejected
+        for k in ("description_llm", "next_steps_llm", "llm"):
+            f.pop(k, None)
+        f["llm_used"] = False
         payload = _finding_payload(f)
         model = (config.OPENAI_MODEL_REASONING if f.get("disposition") == "report"
                  else config.OPENAI_MODEL_FAST)

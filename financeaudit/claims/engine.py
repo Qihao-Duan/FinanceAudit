@@ -149,6 +149,16 @@ def classify(pack) -> dict:
     if rules & {"R02", "R06"} and pack["entity_key"].startswith("vendor:"):
         return {"scheme": "fictitious_vendor", "mechanism": mech, "tier": tier,
                 "anomaly_type": "contextual", "finding_class": "control_breach"}
+    # revenue-side: a posted (and possibly settled) sales invoice with NO goods
+    # issue while its peers reconcile 1:1 (R18 invoice_vs_goods_issue) is a
+    # misstatement risk of the fictitious-sales family — report-capable.
+    # (mutation-suite finding 2026-07-18: was falling through to
+    # statistical_signal and hard-capped at observation.)
+    if any(c["rule_id"] == "R18"
+           and (c.get("metrics") or {}).get("check") == "invoice_vs_goods_issue"
+           for c in pack["candidates"]):
+        return {"scheme": "revenue_timing", "mechanism": mech, "tier": tier,
+                "anomaly_type": "contextual", "finding_class": "misstatement_risk"}
     if "R17" in rules:
         return {"scheme": "related_party", "mechanism": "narrative_only", "tier": tier,
                 "anomaly_type": "contextual", "finding_class": "data_conflict"}
@@ -355,8 +365,15 @@ def build_threshold_splitting(con, pack, fid) -> dict:
     acct = pack["entity_key"].split(":")[1]
     cand = next(c for c in pack["candidates"] if c["rule_id"] == "R03")
     doc_ref = cand["metrics"].get("doc_ref") or cand["metrics"].get("same_doc_ref")
-    rows = q(con, "SELECT * FROM gl WHERE doc_ref=? AND sub_account=? ORDER BY entry_id",
-             [doc_ref, acct])
+    # PAYMENT lines only, restricted to the candidate's own entries: an invoice
+    # payable line sharing the doc_ref must not contaminate the payment set
+    # (mutation-suite bug 2026-07-18: contamination doubled the amount, the
+    # recompute contradicted C1 and the correctly detected finding was rejected).
+    rows = q(con, "SELECT * FROM gl WHERE doc_ref=? AND sub_account=? "
+                  "AND posting_type='Zahlung' ORDER BY entry_id", [doc_ref, acct])
+    _cand_ids = {str(e) for e in (cand.get("entry_ids") or [])}
+    if _cand_ids:
+        rows = [r for r in rows if str(r.get("entry_id")) in _cand_ids]
     limit = Decimal(str(thr(pack["thresholds"], "payment_approval_limit")))
     raws = [dec(r["amount_raw"]) for r in rows]
     total = sum((abs(x) for x in raws), Decimal("0"))
@@ -400,7 +417,7 @@ def build_threshold_splitting(con, pack, fid) -> dict:
         f"reference ({doc_ref}), the same posting text ('Teilzahlung "
         f"Lieferantenrechnung') and the same user ({', '.join(users)}), indicating one "
         f"collective payable settled in parts.",
-        [cell_citation(con, r["source_id"], "BELEGNR", r["doc_ref"]) for r in rows],
+        [cell_citation(con, r["source_id"], "DOKUMENT", r["doc_ref"]) for r in rows],
         verification={"method": "field equality across the payment set", "llm_used": False,
                       "detail": {"n_dates": 1, "n_doc_refs": 1, "n_users": len(users)}},
         verdict="supported" if len({r["posting_date"] for r in rows}) == 1
@@ -412,7 +429,7 @@ def build_threshold_splitting(con, pack, fid) -> dict:
         f"found in the provided and parsed materials; the journal approval log is "
         f"journal-level and its coverage of payments is unproven, so absence of an "
         f"approval is not asserted.",
-        [cell_citation(con, rows[0]["source_id"], "BELEGNR", doc_ref)] if rows else [],
+        [cell_citation(con, rows[0]["source_id"], "DOKUMENT", doc_ref)] if rows else [],
         verification={"method": "approval_log lookup by entry_id + dossier token scan",
                       "llm_used": False,
                       "detail": {"approval_log_hits":
@@ -454,7 +471,7 @@ def build_cutoff(con, pack, fid) -> dict:
                f"Eight vendor invoices dated January 2026 (vendors "
                f"{pp[0]['vendor_account']}–{pp[-1]['vendor_account']}, "
                f"{pp[0]['invoice_no']}–{pp[-1]['invoice_no']}) total {_fmt(inv_total)} EUR.",
-               [cell_citation(con, r["source_id"], "BETRAG", r["amount_raw"]) for r in pp],
+               [cell_citation(con, r["source_id"], "BETRAG_EUR", r["amount_raw"]) for r in pp],
                value=_amount_value(inv_total,
                                    "sum(BETRAG) over the 8 post-period invoices = "
                                    + " + ".join(str(abs(x)) for x in inv_raws),
@@ -494,7 +511,7 @@ def build_cutoff(con, pack, fid) -> dict:
         f"{len(pairs)} of the 8 post-period invoices match, by vendor account and exact "
         f"amount, one December-2025 goods receipt each that is marked 'Dez-Lieferung, "
         f"Rechnung offen' in the goods receipt list.",
-        [cell_citation(con, g["source_id"], "HINWEIS", g["note"]) for _, g in pairs],
+        [cell_citation(con, g["source_id"], "BEMERKUNG", g["note"]) for _, g in pairs],
         verification={"method": "greedy 1:1 join on (vendor_account, exact Decimal amount)",
                       "llm_used": False,
                       "detail": {"n_matched": len(pairs), "n_unmatched": len(unmatched),
@@ -531,7 +548,7 @@ def build_cutoff(con, pack, fid) -> dict:
             f"so the relation is undetermined. The profit-or-loss effect is a separate "
             f"question and requires item-by-item confirmation (accrual coverage, "
             f"inventory attribution, expense nature).",
-            [cell_citation(con, r["source_id"], "BETRAG", r["amount_raw"]) for r in pp]
+            [cell_citation(con, r["source_id"], "BETRAG_EUR", r["amount_raw"]) for r in pp]
             + [cell_citation(con, a["source_id"], "BUCHUNGSBETRAG", a["amount_raw"])],
             value=_amount_value(low,
                                 f"sum(8 invoices) - accrual = {_fmt(inv_total)} - "
@@ -628,7 +645,7 @@ def build_expense_capitalization(con, pack, fid) -> dict:
             f"Asset cards exist and are active for the {len(cards)} capitalized items — "
             f"consistent with an orderly capitalization workflow and with the "
             f"alternative reading of capitalizable component replacements.",
-            [cell_citation(con, c["source_id"], "BEZEICHNUNG", c["name"]) for c in cards],
+            [cell_citation(con, c["source_id"], "ANLAGENBEZEICHNUNG", c["name"]) for c in cards],
             verification={"method": "assets table lookup", "llm_used": False}))
     return {
         "claims": claims,
@@ -667,8 +684,8 @@ def build_related_party(con, pack, fid) -> dict:
             f"(parent company), while the shareholder list line assigns 'Personenkonto "
             f"Kreditor {acct}' to '{s['name']}' (sister company) — two different group "
             f"entities for the same payable account.",
-            [cell_citation(con, v["source_id"], "NAME", v["name"]),
-             cell_citation(con, s["source_id"], "HINWEIS", s["note"])],
+            [cell_citation(con, v["source_id"], "LIEFERANTENNAME", v["name"]),
+             cell_citation(con, s["source_id"], "BEMERKUNG", s["note"])],
             verification={"method": "cross-document name comparison on account linkage",
                           "llm_used": False,
                           "detail": {"vendor_master": v["name"], "shareholder_list": s["name"]}},
@@ -772,6 +789,58 @@ def build_duplicate_payment(con, pack, fid) -> dict:
     }
 
 
+def _table_headers(con, table) -> dict:
+    """semantic_role -> raw file header (first/lowest-position column of that
+    role) from the ingest column profiles. Lets whole-row citations carry the
+    file's actual header names instead of invented labels like 'ZEILE'."""
+    out = {}
+    if not table:
+        return out
+    try:
+        for rc, sr in con.execute(
+                "SELECT raw_column, semantic_role FROM column_profiles "
+                "WHERE table_name=? ORDER BY position", [table]).fetchall():
+            out.setdefault(sr, rc)
+    except Exception:
+        pass
+    return out
+
+
+def _key_citation(con, table, sid, row) -> dict:
+    """Whole-row citation keyed on the row's real primary column — the raw file
+    header (account, else document reference, else a name/text column) resolved
+    from column_profiles — never an invented 'ZEILE' label."""
+    hdr = _table_headers(con, table)
+    for role, field in (("account", "account"), ("doc_ref", "doc_ref")):
+        if row.get(field) is not None and role in hdr:
+            return cell_citation(con, sid, hdr[role], row[field])
+    for field in ("name", "note", "text", "field"):
+        if row.get(field) not in (None, ""):
+            return cell_citation(con, sid, hdr.get("text", field.upper()), row[field])
+    any_hdr = hdr.get("account") or hdr.get("doc_ref") or next(iter(hdr.values()), "ROW")
+    return cell_citation(con, sid, any_hdr, row.get("account") or row.get("row_id") or "")
+
+
+def _sid_key_citation(con, sid) -> dict:
+    """Whole-row citation for a bare source_id (no row object): resolve its file
+    -> table -> row (source_registry + column_profiles), then key on the real
+    primary column."""
+    frows = q(con, "SELECT file FROM source_registry WHERE source_id=?", [sid])
+    file = frows[0]["file"] if frows else None
+    table = None
+    if file:
+        trows = q(con, "SELECT table_name FROM column_profiles WHERE file=? LIMIT 1", [file])
+        table = trows[0]["table_name"] if trows else None
+    row = {}
+    if table:
+        try:
+            rr = q(con, f"SELECT * FROM {table} WHERE source_id=? LIMIT 1", [sid])
+            row = rr[0] if rr else {}
+        except Exception:
+            row = {}
+    return _key_citation(con, table, sid, row)
+
+
 def build_generic(con, pack, fid) -> dict:
     """Fallback builder for packs without a dedicated scheme (R01 user packs,
     R08 statistical signals, unknown future rules). Always neutral wording."""
@@ -780,7 +849,7 @@ def build_generic(con, pack, fid) -> dict:
     cits = []
     for t in ("permissions", "gl", "masterdata_changes"):
         for r in rows.get(t, [])[:6]:
-            label = {"permissions": ("BENUTZER", r.get("user_id")),
+            label = {"permissions": ("Benutzer", r.get("user_id")),
                      "gl": ("BUCHUNGSBETRAG", r.get("amount_raw")),
                      "masterdata_changes": ("FELD", r.get("field"))}[t]
             try:
@@ -788,40 +857,45 @@ def build_generic(con, pack, fid) -> dict:
             except KeyError:
                 continue
     if not cits:
-        # fallback 1: any other row table in the pack (e.g. vendors/customers)
+        # fallback 1: any other row table in the pack (e.g. vendors/customers),
+        # each cited on its real key column (raw file header + value), not 'ZEILE'.
         for t, rlist in rows.items():
             for r in rlist[:4]:
                 sid = r.get("source_id")
                 if not sid:
                     continue
                 try:
-                    cits.append(cell_citation(
-                        con, sid, "ZEILE",
-                        r.get("name") or r.get("account") or r.get("doc_ref") or ""))
+                    cits.append(_key_citation(con, t, sid, r))
                 except KeyError:
                     continue
             if cits:
                 break
     if not cits:
-        # fallback 2: the candidate's own cited source rows
+        # fallback 2: the candidate's own cited source rows, each keyed on its
+        # real primary column (resolved via source_registry -> column_profiles).
         for c in pack["candidates"]:
             for sid in (c.get("source_ids") or [])[:6]:
                 try:
-                    cits.append(cell_citation(con, sid, "ZEILE", ""))
+                    cits.append(_sid_key_citation(con, sid))
                 except KeyError:
                     continue
             if cits:
                 break
+    den = cand.get("denominators") or {}
     claims = [_claim(
         fid, 1, "supporting" if cand.get("risk_tier") == "low" else "core",
         "comparative",
-        f"{cand.get('description', 'Deterministic rule signal.')} "
-        f"(rule {cand['rule_id']}, population "
-        f"{ (cand.get('denominators') or {}).get('population_size', 'n/a') }, "
-        f"hits { (cand.get('denominators') or {}).get('rule_hits', 'n/a') }).",
+        # Assertion is audit prose only: the rule id / population / hits belong in
+        # the verification record, not inside the human-readable sentence. The
+        # finding-level denominators keep the same numbers visible for the report.
+        cand.get("description") or "Deterministic rule signal.",
         cits,
         verification={"method": f"finder rule {cand['rule_id']} deterministic output",
-                      "llm_used": False, "detail": cand.get("metrics", {})})]
+                      "llm_used": False,
+                      "detail": {**(cand.get("metrics") or {}),
+                                 "rule_id": cand["rule_id"],
+                                 "population_size": den.get("population_size"),
+                                 "rule_hits": den.get("rule_hits")}})]
     return {
         "claims": claims,
         "title": f"{pack['entity_label']} — {cand.get('rule_name', cand['rule_id'])} signal",

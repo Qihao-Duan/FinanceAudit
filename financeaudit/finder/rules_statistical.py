@@ -297,9 +297,24 @@ def r11_round_amount_concentration(con, thresholds):
         [R11_AMOUNT_FLOOR],
     ).fetchall()
 
+    # Defensible counterparty definition: a counterparty group is a real
+    # subledger Personenkonto — an account carrying a vendor/customer master
+    # record. Without this guard a disposal sub-reference on an asset line
+    # (e.g. Anlagennummer '000005' on a 04xxxx Anlagenabgang, sub_account set
+    # but no vendor/customer identity) is mis-counted as a counterparty and
+    # inflates the population by one (304 -> 303). Users are always real
+    # posting identities. If no master tables exist (non-practice dataset) the
+    # guard is a no-op and the prior all-sub_accounts behaviour is preserved.
+    master = set()
+    for _t in ("vendors", "customers"):
+        try:
+            master |= {r[0] for r in con.execute(f"SELECT account FROM {_t}").fetchall()}
+        except Exception:
+            pass
+
     groups = {"counterparty": defaultdict(list), "user": defaultdict(list)}
     for entry_id, rnd, cp, user, gross in ent:
-        if cp:
+        if cp and (not master or cp in master):
             groups["counterparty"][cp].append((entry_id, rnd, gross))
         groups["user"][user].append((entry_id, rnd, gross))
 
@@ -480,7 +495,11 @@ def r14_user_account_novelty(con, thresholds):
 
     out = []
     for user, acct, fd, s, n, entry_ids in hits:
-        entry_ids = sorted(entry_ids)[:20]
+        # Include every entry for the user/account combination — no LIMIT: the
+        # candidate must cite all its evidence (e.g. the 22 year-end-bonus
+        # entries, previously truncated to 20). source_ids follow from the full
+        # entry set below.
+        entry_ids = sorted(entry_ids)
         out.append(_mk(
             "R14", "user_account_novelty", len(out) + 1, "contextual", "low",
             f"user_account:{user}|{acct}", f"{user} x {acct} {names.get(acct, '')}",
@@ -520,7 +539,7 @@ def r14_user_account_novelty(con, thresholds):
             [R14_MIN_SUM],
         ).fetchall()
         for user, n, s, entry_ids in wk:
-            entry_ids = sorted(entry_ids)[:20]
+            entry_ids = sorted(entry_ids)   # cite all weekend entries, no truncation
             out.append(_mk(
                 "R14", "user_account_novelty", len(out) + 1, "contextual", "low",
                 f"user:{user}", user,

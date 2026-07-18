@@ -502,7 +502,15 @@ _BROWSE_EXTRA = ["gl_accounts", "doc_units", "source_registry",
 
 
 def _browse_allowed() -> List[str]:
-    return CONTRACT_TABLES + [t for t in _BROWSE_EXTRA if t not in CONTRACT_TABLES]
+    base = CONTRACT_TABLES + [t for t in _BROWSE_EXTRA if t not in CONTRACT_TABLES]
+    try:  # auto-adapter tables (ext_*) are browseable too
+        base += [r[0] for r in _duck().execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema='main' AND table_name LIKE 'ext!_%' ESCAPE '!' "
+            "ORDER BY 1").fetchall() if r[0] not in base]
+    except Exception:
+        pass
+    return base
 
 
 @app.get("/api/tables")
