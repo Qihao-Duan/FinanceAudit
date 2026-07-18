@@ -405,9 +405,18 @@ def parse_xlsx_files(data_dir: Path, registry, manifest):
             if row[0] is None:
                 continue
             sid = _xl_register(registry, rel, fh, ws.title, r_no, row)
-            val, raw_a, canon = excel_amount(row[3])
+            g = lambda i: row[i] if len(row) > i else None
+            try:
+                val, raw_a, canon = excel_amount(g(3))
+            except Exception as exc:
+                # finals-robustness: a row whose expected amount cell does not
+                # parse (different layout, subtotal/text row) is skipped and
+                # RECORDED — never crash the whole ingest (finals run 2026-07-18).
+                errors.append(f"{ws.title} row {r_no}: amount cell not parseable "
+                              f"({str(exc)[:60]}; value={g(3)!r})")
+                continue
             tables[acc_table].append({
-                "account": str(row[0]), "name": row[1], "grp": row[2],
+                "account": str(g(0)), "name": g(1), "grp": g(2),
                 "balance": val, "balance_raw": raw_a, "balance_dec": canon,
                 "row_id": r_no, "source_id": sid})
             parsed += 1
@@ -417,16 +426,23 @@ def parse_xlsx_files(data_dir: Path, registry, manifest):
                 if row[0] is None:
                     continue
                 sid = _xl_register(registry, rel, fh, ws2.title, r_no, row)
-                val, raw_a, canon = excel_amount(row[4])
+                g2 = lambda i: row[i] if len(row) > i else None
+                try:
+                    val, raw_a, canon = excel_amount(g2(4))
+                    ddate = parse_german_date(g2(3)) if g2(3) is not None else None
+                except Exception as exc:
+                    errors.append(f"{ws2.title} row {r_no}: cell not parseable "
+                                  f"({str(exc)[:60]}; amount={g2(4)!r} date={g2(3)!r})")
+                    continue
                 tables[item_table].append({
-                    "account": str(row[0]), "name": row[1], "doc_ref": row[2],
-                    "doc_date": parse_german_date(row[3]),
+                    "account": str(g2(0)), "name": g2(1), "doc_ref": g2(2),
+                    "doc_date": ddate,
                     "amount": val, "amount_raw": raw_a, "amount_dec": canon,
                     "row_id": r_no, "source_id": sid})
                 parsed += 1
         manifest.add(file=rel, file_hash=fh, size_bytes=path.stat().st_size,
-                     expected_units=parsed, parsed_units=parsed, parser_errors=errors,
-                     population_scope=scope)
+                     expected_units=parsed + len(errors), parsed_units=parsed,
+                     parser_errors=errors, population_scope=scope)
 
     # --- Saldenliste 2025 (trial balance; closing column is an uncached formula =D+E-F)
     rel = f"{BEGLEIT}/Saldenliste_2025.xlsx"

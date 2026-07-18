@@ -257,14 +257,33 @@ def defend_expense_capitalization(con, finding, pack):
                  "status": sorted({c.get("status") for c in cards}) if cards else None})]
     tech = (scan_token(con, "Gutachten") + scan_token(con, "technische Beurteilung")
             + scan_token(con, "Komponententausch"))
+    # Sidecar table consumption (mutation-suite fix): a typed
+    # technical_assessments table (auto-adapter / optional spec) is
+    # authoritative when present — the token scan alone missed
+    # 'Technische_Beurteilungen_Synthetisch.csv' (underscored filename).
+    tbl_rows = []
+    try:
+        _ids = sorted({c.get("asset_id") for c in cards if c.get("asset_id")})
+        for r in q(con, "SELECT * FROM technical_assessments"):
+            blob = " ".join(str(v) for v in r.values())
+            if not _ids or any(i in blob for i in _ids):
+                tbl_rows.append(r)
+    except Exception:
+        tbl_rows = []
+    found = bool(tbl_rows) or resolves_outside(tech)
+    sids = ([r["source_id"] for r in tbl_rows if r.get("source_id")][:10]
+            or [h["source_id"] for h in tech if h["source_id"]][:10])
     preds.append(_p("technical_assessment_exists",
                     "Does a technical assessment / component-replacement justification "
                     "exist in the dossier?",
-                    "not_found" if not resolves_outside(tech) else "found",
-                    [h["source_id"] for h in tech if h["source_id"]][:10],
-                    {"n_hits": len(tech),
-                     "note": "no dossier file declares assessment coverage — wording "
-                             "limited to 'not found in the provided and parsed materials'"}))
+                    "found" if found else "not_found",
+                    sids,
+                    {"n_hits": len(tech), "n_table_rows": len(tbl_rows),
+                     "table": "technical_assessments" if tbl_rows else None,
+                     "note": ("typed technical_assessments table consulted"
+                              if tbl_rows else
+                              "no dossier file declares assessment coverage — wording "
+                              "limited to 'not found in the provided and parsed materials'")}))
     ids = sorted({c["asset_id"] for c in cards})
     afa = []
     if ids:

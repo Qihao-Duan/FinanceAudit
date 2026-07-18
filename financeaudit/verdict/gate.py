@@ -67,7 +67,10 @@ def normalize_retry(f) -> tuple[bool, list[str]]:
 def intent_indicators(f) -> list[str]:
     """Deterministic intent-indicator extraction (PLAN §3.6 wording gate)."""
     ind = []
-    preds = {p["predicate"]: p for p in f.get("innocence_checked", [])}
+    # LLM-originated entries (AGENTS stage, llm_* prefix) are presentation/
+    # defense enrichment and must NEVER influence the deterministic gate.
+    preds = {p["predicate"]: p for p in f.get("innocence_checked", [])
+             if not str(p.get("predicate", "")).startswith("llm_")}
     claims = {c["claim_id"].rsplit("-", 1)[-1]: c for c in f.get("claims", [])}
 
     def _supported(ctype):
@@ -133,6 +136,34 @@ def decide(f) -> dict:
             "low-tier / statistical signal — corroboration only")
     else:
         disposition, reason = "report", "all core claims supported, recompute exact"
+
+    # Decisive-exculpation demotion (deterministic; mutation-suite symmetry
+    # fix 2026-07-18): when the defense documents scheme-specific DECISIVE
+    # exculpatory evidence, the finding is disclosed as an observation with
+    # the evidence attached instead of being reported as a deviation. Only
+    # deterministic predicates count (llm_* excluded); the LIST is scanned so
+    # multiple entries under one predicate name (token-scan + typed-table)
+    # cannot shadow each other.
+    DECISIVE_EXCULPATION = {
+        "threshold_splitting": ("batch_payment_authorization",),
+        "expense_capitalization": ("technical_assessment_exists",),
+        "cutoff": ("accrual_schedule_allocation",),
+        "controls_breach": ("batch_payment_authorization",
+                             "offsetting_refund_exists"),
+    }
+    if disposition == "report":
+        decisive = [p for p in f.get("innocence_checked", [])
+                    if p.get("result") == "found"
+                    and not str(p.get("predicate", "")).startswith("llm_")
+                    and p.get("predicate") in
+                    DECISIVE_EXCULPATION.get(f.get("scheme"), ())]
+        if decisive:
+            disposition = "observation"
+            names = sorted({p["predicate"] for p in decisive})
+            reason = ("decisive exculpatory evidence documented "
+                      f"({', '.join(names)}) — disclosed as observation with "
+                      "the evidence attached, not reported as a deviation")
+            gate["decisive_exculpation"] = names
 
     ind = intent_indicators(f)
     if disposition == "report" and ind:
