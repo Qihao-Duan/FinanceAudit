@@ -19,6 +19,10 @@
       <span class="stat" id="stat-coverage" title="Parse coverage across all source files">–</span>
       <span class="stat" id="stat-balance" title="Sum of GL posting amounts">–</span>
     </div>
+    <div class="lang-toggle" id="view-toggle" role="group" aria-label="View">
+      <button type="button" data-view="findings" id="view-findings-btn" class="active">Findings</button>
+      <button type="button" data-view="data" id="view-data-btn">Data</button>
+    </div>
     <div class="lang-toggle" id="lang-toggle" role="group" aria-label="Language">
       <button type="button" data-loc="en" id="lang-en">EN</button>
       <button type="button" data-loc="de" id="lang-de">DE</button>
@@ -49,6 +53,27 @@
   </aside>
 </main>
 
+<main class="layout data-layout" id="data-view" hidden>
+  <nav class="pane pane-left" aria-label="Tables">
+    <div class="group-h" id="data-tables-h">Tables</div>
+    <div id="data-tables"></div>
+  </nav>
+  <section class="pane pane-data" aria-label="Table data">
+    <div class="data-toolbar">
+      <span class="src-caption" id="data-caption">–</span>
+      <input type="search" id="data-search" placeholder="Search …">
+      <div class="pager">
+        <button type="button" id="data-prev">Prev</button>
+        <span id="data-range">–</span>
+        <button type="button" id="data-next">Next</button>
+      </div>
+    </div>
+    <div class="profile-strip" id="data-profile"></div>
+    <div class="data-body" id="data-body"></div>
+  </section>
+</main>
+
 <script type="module" src="app.js"></script>
+<script type="module" src="data.js"></script>
 </body>
 </html>

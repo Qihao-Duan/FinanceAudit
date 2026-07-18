@@ -391,6 +391,76 @@ def api_status():
     }
 
 
+# --------------------------------------------------------------------------
+# data explorer (browse the structured DuckDB tables)
+# --------------------------------------------------------------------------
+
+_BROWSE_EXTRA = ["gl_accounts", "doc_units", "source_registry",
+                 "column_profiles", "source_manifest"]
+
+
+def _browse_allowed() -> List[str]:
+    return CONTRACT_TABLES + [t for t in _BROWSE_EXTRA if t not in CONTRACT_TABLES]
+
+
+@app.get("/api/tables")
+def api_tables():
+    if mode() != "build":
+        raise HTTPException(409, "data explorer requires build mode (run the pipeline)")
+    con = _duck()
+    present = {r[0] for r in con.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = 'main'").fetchall()}
+    out = []
+    for t in _browse_allowed():
+        if t not in present:
+            continue
+        n = con.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+        files = [r[0] for r in con.execute(
+            "SELECT DISTINCT file FROM column_profiles WHERE table_name = ? "
+            "ORDER BY 1", [t]).fetchall()]
+        out.append({"name": t, "rows": n, "files": files})
+    return out
+
+
+@app.get("/api/tables/{name}")
+def api_table(name: str,
+              limit: int = Query(50, ge=1, le=500),
+              offset: int = Query(0, ge=0),
+              q: Optional[str] = Query(None)):
+    if mode() != "build":
+        raise HTTPException(409, "data explorer requires build mode (run the pipeline)")
+    if name not in _browse_allowed():
+        raise HTTPException(404, f"unknown table {name}")
+    con = _duck()
+    cur = con.execute(f'SELECT * FROM "{name}" LIMIT 0')
+    cols = [d[0] for d in cur.description]
+    order = '"row_id"' if "row_id" in cols else f'"{cols[0]}"'
+    where, params = "", []
+    if q:
+        blob = "lower(concat_ws(' ', " + ", ".join(
+            f'CAST("{c}" AS VARCHAR)' for c in cols) + "))"
+        where = f"WHERE {blob} LIKE ?"
+        params = [f"%{q.lower()}%"]
+    total = con.execute(
+        f'SELECT COUNT(*) FROM "{name}" {where}', params).fetchone()[0]
+    rows = con.execute(
+        f'SELECT * FROM "{name}" {where} ORDER BY {order} LIMIT ? OFFSET ?',
+        params + [limit, offset]).fetchall()
+    profiles = [
+        {"column": r[0], "declared_role": r[1], "semantic_role": r[2],
+         "dtype": r[3], "n_unique": r[4], "is_constant": bool(r[5]),
+         "conflict": r[6]}
+        for r in con.execute(
+            "SELECT raw_column, declared_role, semantic_role, dtype, n_unique, "
+            "is_constant, conflict FROM column_profiles WHERE table_name = ? "
+            "ORDER BY position", [name]).fetchall()]
+    return {"name": name, "columns": cols, "total": total,
+            "offset": offset, "limit": limit,
+            "rows": [["" if v is None else str(v) for v in r] for r in rows],
+            "profiles": profiles}
+
+
 @app.get("/api/source/{source_id}/render")
 def api_render(source_id: str,
                quote: Optional[str] = Query(None),
