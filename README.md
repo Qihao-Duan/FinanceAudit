@@ -33,7 +33,7 @@ Given a dossier, the pipeline:
 4. **Decomposes each finding into atomic claims**, where every monetary claim is a formula over cited operands, **recomputed with Python `Decimal` at 0 tolerance** for ledger-to-ledger checks.
 5. **Runs an independent defense pass**: per fraud scheme it enumerates innocence predicates and searches the dossier for counterevidence, producing a three-valued verdict (`supported` / `contradicted` / `unverifiable`).
 6. **Gates the verdict**: a finding is only reported when every *core* claim is supported, its amounts recompute, and no direct counterevidence exists; everything else becomes a neutral observation, a PBC request, or is quarantined — never silently discarded.
-7. **Serves an evidence-card UI** where each finding shows its assertion tree, formula + recompute, defense log and denominators, and every citation chip opens the highlighted source cell or PDF page.
+7. **Serves an evidence-card UI** where each finding shows its assertion tree, formula + recompute, defense log and denominators, and every citation chip opens the highlighted source cell or PDF page. The UI has two views (top-bar toggle): **Findings** (evidence cards) and **Data** — a browser over all structured DuckDB tables with pagination, full-row search and a column-semantics strip that displays declared-vs-observed role conflicts inline. A **workspace dropdown** switches the whole UI between built dossiers/companies at runtime (company names read from each dossier's `index.xml` DataSupplier).
 
 The practice company is **Muster Verpackungen GmbH** (FY2025, revenue €55.4M), whose dossier contains four seeded fraud patterns (vendor-control anomaly, repair-as-capitalization, year-end cut-off, below-threshold payment splitting) and seven decoys designed to punish over-reporting.
 
@@ -98,6 +98,7 @@ FA_BUILD_DIR=build_finals FA_DATA_DIR=data/finals ./scripts/serve_ui.sh
 ```
 
 - `FA_DATA_DIR` / `FA_BUILD_DIR` (read by `ui/server.py`) let the UI point at any dossier + build directory; `--data` / `--build` do the same for the pipeline.
+- **Or skip the env vars**: any `build*/` directory containing pipeline artifacts appears automatically in the UI's top-bar **workspace dropdown** (`GET /api/workspaces`, `POST /api/workspace`) — run the pipeline into `build_finals` and switch to it live, no server restart.
 - If the new dossier ships an audit-planning document, control thresholds (dual-approval limit, materiality, lock date) are **extracted with citations**; otherwise the finder falls back to configured defaults and finally to threshold-free, distribution-relative rules (see [`docs/ARCHITECTURE.md` §threshold fallback](docs/ARCHITECTURE.md#threshold-three-level-fallback)).
 - Structural differences (renamed/re-typed columns, missing tables) are absorbed by per-file schema adapters and the semantic-alias layer; declared-vs-observed conflicts are recorded in the manifest rather than silently trusted.
 
